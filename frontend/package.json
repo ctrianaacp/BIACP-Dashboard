@@ -1,0 +1,50 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^5.7.0",
+    "@azure/msal-react": "^5.3.0",
+    "@deck.gl/aggregation-layers": "^9.3.1",
+    "@deck.gl/layers": "^9.3.1",
+    "@deck.gl/react": "^9.3.1",
+    "@tanstack/react-query": "^5.90.21",
+    "apexcharts": "^5.10.3",
+    "axios": "^1.13.6",
+    "date-fns": "^4.1.0",
+    "deck.gl": "^9.3.1",
+    "fuse.js": "^7.1.0",
+    "html2canvas": "^1.4.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.8.0",
+    "maplibre-gl": "^5.23.0",
+    "next": "16.1.6",
+    "pg": "^8.20.0",
+    "react": "19.2.3",
+    "react-apexcharts": "^2.1.0",
+    "react-dom": "19.2.3",
+    "react-leaflet": "^5.0.0",
+    "react-map-gl": "^8.1.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/command-line-args": "^5.2.3",
+    "@types/command-line-usage": "^5.0.4",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^20",
+    "@types/offscreencanvas": "^2019.7.3",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "pptxgenjs": "^4.0.1",
+    "typescript": "^5"
+  }
+}
