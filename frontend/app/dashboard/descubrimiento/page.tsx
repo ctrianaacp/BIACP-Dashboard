@@ -13,10 +13,15 @@ import {
   Handshake, 
   ArrowRight
 } from "lucide-react";
+import { useMsal } from "@azure/msal-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import Loading from "@/components/Loading";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+
+const SUPERADMIN_EMAIL = "ctriana@acp.com.co";
 
 async function fetchDiscovery() {
   const { data } = await axios.get("/api/stats/dashboard?type=discovery");
@@ -68,10 +73,23 @@ function QualityCard({ label, total, normalizados, residuos, icon: Icon, color }
 }
 
 export default function DescubrimientoPage() {
+  const { accounts } = useMsal();
+  const router = useRouter();
+  const esSuperAdmin = accounts[0]?.username?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+
+  useEffect(() => {
+    if (!esSuperAdmin) {
+      router.replace("/dashboard");
+    }
+  }, [esSuperAdmin, router]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["discovery"],
-    queryFn: fetchDiscovery
+    queryFn: fetchDiscovery,
+    enabled: esSuperAdmin // Solo cargar datos si es superadmin
   });
+
+  if (!esSuperAdmin) return null;
 
   if (isLoading) return <Loading message="Analizando pertinencia estratégica de los datos..." />;
 

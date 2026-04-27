@@ -104,7 +104,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <nav className="sidebar-nav">
           {SECTIONS.map((section) => {
-            const items = NAV_ITEMS.filter((n) => n.section === section);
+            const esSuperAdmin = accounts[0]?.username?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+            const items = NAV_ITEMS.filter((n) => n.section === section).filter(n => {
+              if (n.href === "/dashboard/descubrimiento" && !esSuperAdmin) return false;
+              return true;
+            });
             if (!items.length) return null;
             return (
               <div key={section} style={{ marginBottom: 16 }}>
