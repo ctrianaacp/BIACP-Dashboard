@@ -8,7 +8,8 @@ Este documento define las reglas de desarrollo, la arquitectura de agentes y los
 2.  **Cero Placeholders**: No se permiten imágenes o datos de relleno. Si falta un recurso, se genera o se consulta la fuente real.
 3.  **Normalización Estricta**: Los datos provenientes de Excel/SharePoint deben pasar por el motor de normalización (`lib/normalizacion.ts`) para garantizar integridad.
 4.  **Seguridad First**: Toda consulta a SharePoint debe validarse con MSAL. No se exponen secretos en el frontend.
-5.  **Performance**: Las descargas de Excel desde Graph API deben usar el método XLSX directo para archivos grandes (>5000 filas) para evitar throttling.
+5.  **Performance**: Las descargas de Excel desde Graph API deben usar el método XLSX directo para archivos pequeños.
+6.  **Fuente de Verdad (Base de Datos)**: Para volúmenes masivos de datos (ej. Bienes y Servicios, Empleo, Inversión Social), la fuente de verdad es la base de datos **PostgreSQL** alojada en producción, gestionada a través de ingestas de los sub-agentes ETL de Python. El Frontend debe consultar esta DB usando el pool de `lib/db.ts` con caché dinámico (`force-dynamic`).
 
 ---
 
@@ -26,6 +27,11 @@ Para optimizar el desarrollo, utilizaremos los siguientes perfiles especializado
 ---
 
 ## 🛠️ Workflows (.agents/workflows/)
+
+### 🌍 Despliegue a Producción (Coolify)
+Flujo oficial para compilar y lanzar el Dashboard en el VPS.
+1. Ejecuta el workflow `deploy-production.md` o revisa el documento en `.agents/workflows/deploy-production.md`.
+2. Sigue los pasos de commits en Git, recarga en Coolify y monitoreo con Sentinel.
 
 ### 🚀 Despliegue Local (Estándar Puerto 3007)
 Para desplegar el frontend de forma consistente con MSAL:
