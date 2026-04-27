@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // 1. Inversión Social (Desactivado temporalmente hasta migrar tabla de Inversión)
