@@ -6,8 +6,7 @@ export async function GET() {
     // 1. Inversión Social (Seleccionamos solo lo necesario para KPIs y Tabla)
     const resInversion = await query(`
       SELECT anio, empresa_raw, departamento_raw, municipio_raw, valor_cop, 
-             num_beneficiarios, beneficiarios_totales, tipo_inversion,
-             id, nombre_proyecto, ods_principal
+             tipo_inversion, id, nombre_proyecto, ods_principal
       FROM hecho_inversion_social
       LIMIT 10000
     `);
