@@ -5,16 +5,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // 1. Inversión Social (Desactivado temporalmente hasta migrar tabla de Inversión)
-    const resInversion = { rows: [] };
-    /*
+    // 1. Inversión Social (Seleccionamos solo lo necesario para KPIs y Tabla)
     const resInversion = await query(`
       SELECT anio, empresa_raw, departamento_raw, municipio_raw, valor_cop, 
-             tipo_inversion, id, nombre_proyecto, ods_principal
+             num_beneficiarios, beneficiarios_totales, tipo_inversion,
+             id, nombre_proyecto, ods_principal
       FROM hecho_inversion_social
       LIMIT 10000
     `);
-    */
     
     // 2. Empleo
     const resEmpleo = await query(`
