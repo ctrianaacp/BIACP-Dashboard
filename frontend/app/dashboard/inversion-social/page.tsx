@@ -22,6 +22,7 @@ import Loading from "@/components/Loading";
 import { formatNum, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 interface RegistroInvSocial {
   Empresa: string; Departamento: string; Municipio: string;
@@ -394,24 +395,19 @@ export default function InversionSocialPage() {
           <span className="panel-title">Detalle de Proyectos Sociales</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead><tr><th>Empresa</th><th>Departamento</th><th>Municipio</th><th>Tipo Proyecto</th><th>Año</th><th style={{textAlign:"right"}}>Monto</th><th style={{textAlign:"right"}}>Beneficiarios</th></tr></thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r,i)=>(
-                <tr key={i}>
-                  <td data-label="Empresa" style={{fontWeight:700, color: 'var(--color-secondary)'}}>{r.Empresa}</td>
-                  <td data-label="Departamento">{r.Departamento}</td>
-                  <td data-label="Municipio">{r.Municipio}</td>
-                  <td data-label="Tipo Proyecto" style={{fontSize:12}}>{r.TipoProyecto||"–"}</td>
-                  <td data-label="Año" style={{opacity: 0.7}}>{r.Anio}</td>
-                  <td data-label="Monto" style={{textAlign:"right",fontWeight:700,color:"var(--color-info)"}}>{formatCurrency(r.MontoInvertido, true)}</td>
-                  <td data-label="Beneficiarios" style={{textAlign:"right",color:"var(--color-emphasis)",fontWeight:700}}>{formatNum(r.Beneficiarios)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "Empresa", label: "Empresa", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{v}</span> },
+            { key: "Departamento", label: "Departamento" },
+            { key: "Municipio", label: "Municipio" },
+            { key: "TipoProyecto", label: "Tipo Proyecto", render: (v) => <span style={{ fontSize: 12 }}>{v || "–"}</span> },
+            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7 }}>{v}</span> },
+            { key: "MontoInvertido", label: "Monto", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-info)" }}>{formatCurrency(v, true)}</span> },
+            { key: "Beneficiarios", label: "Beneficiarios", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-emphasis)" }}>{formatNum(v)}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );
