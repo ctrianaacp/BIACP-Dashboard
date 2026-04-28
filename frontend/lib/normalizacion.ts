@@ -62,7 +62,7 @@ export function textProper(text: string | null | undefined): string {
   if (!text) return "";
   return text
     .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/(^|\s)\S/g, (char) => char.toUpperCase())
     .trim();
 }
 
