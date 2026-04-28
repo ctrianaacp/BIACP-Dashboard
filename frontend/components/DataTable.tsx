@@ -193,7 +193,7 @@ export default function DataTable<T extends Record<string, any>>({
         <table style={{ position: "relative" }}>
           <thead>
             <tr>
-              {columns.map((col) => {
+              {columns.map((col, colIdx) => {
                 const isSorted = sortCol === col.key;
                 const isFiltered = filters[col.key]?.size > 0;
                 const isOpen = openFilter === col.key;
@@ -202,7 +202,7 @@ export default function DataTable<T extends Record<string, any>>({
 
                 return (
                   <th
-                    key={col.key}
+                    key={`${col.key}-${colIdx}`}
                     style={{
                       textAlign: col.align || "left",
                       position: "sticky", top: 0, zIndex: isOpen ? 20 : 10,
@@ -385,9 +385,9 @@ export default function DataTable<T extends Record<string, any>>({
           <tbody>
             {paged.map((row, i) => (
               <tr key={i}>
-                {columns.map((col) => (
+                {columns.map((col, colIdx) => (
                   <td
-                    key={col.key}
+                    key={`${col.key}-${colIdx}`}
                     style={{ textAlign: col.align || "left" }}
                     data-label={col.label}
                   >
