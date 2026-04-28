@@ -301,19 +301,29 @@ export default function ProduccionPetroleoPage() {
 
   // Top 10 operadoras por producción
   const topOperadoras = useMemo(() => {
-    const acc: Record<string, number> = {};
-    filtrados.forEach((r) => { acc[r.Operadora] = (acc[r.Operadora] ?? 0) + r.Produccion; });
+    const acc: Record<string, typeof filtrados> = {};
+    filtrados.forEach((r) => {
+      if (!acc[r.Operadora]) acc[r.Operadora] = [];
+      acc[r.Operadora].push(r);
+    });
     return Object.entries(acc)
-      .sort(([, a], [, b]) => b - a)
+      .map(([op, regs]) => ({ op, val: calcularBPDC(regs) }))
+      .sort((a, b) => b.val - a.val)
       .slice(0, 10)
-      .map(([op, val]) => ({ op, val: Math.round(val) }));
+      .map(o => ({ ...o, val: Math.round(o.val) }));
   }, [filtrados]);
 
   // Top departamentos
   const topDptos = useMemo(() => {
-    const acc: Record<string, number> = {};
-    filtrados.forEach((r) => { acc[r.Departamento] = (acc[r.Departamento] ?? 0) + r.Produccion; });
-    return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 8);
+    const acc: Record<string, typeof filtrados> = {};
+    filtrados.forEach((r) => {
+      if (!acc[r.Departamento]) acc[r.Departamento] = [];
+      acc[r.Departamento].push(r);
+    });
+    return Object.entries(acc)
+      .map(([dpto, regs]) => [dpto, calcularBPDC(regs)] as [string, number])
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8);
   }, [filtrados]);
 
   // ─── Opciones de gráficos ──────────────────────────────────────────────────

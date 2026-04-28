@@ -260,24 +260,41 @@ export default function ProduccionGasPage() {
   }, [kpis.porFecha]);
 
   const topOperadoras = useMemo(() => {
-    const acc: Record<string, number> = {};
-    filtrados.forEach((r) => { acc[r.Operadora] = (acc[r.Operadora] ?? 0) + r.Produccion; });
-    return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 10);
+    const acc: Record<string, typeof filtrados> = {};
+    filtrados.forEach((r) => {
+      if (!acc[r.Operadora]) acc[r.Operadora] = [];
+      acc[r.Operadora].push(r);
+    });
+    return Object.entries(acc)
+      .map(([op, regs]) => [op, calcularMPGDPromedio(regs)] as [string, number])
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10);
   }, [filtrados]);
 
   const topDptos = useMemo(() => {
-    const acc: Record<string, number> = {};
-    filtrados.forEach((r) => { acc[r.Departamento] = (acc[r.Departamento] ?? 0) + r.Produccion; });
-    return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 8);
+    const acc: Record<string, typeof filtrados> = {};
+    filtrados.forEach((r) => {
+      if (!acc[r.Departamento]) acc[r.Departamento] = [];
+      acc[r.Departamento].push(r);
+    });
+    return Object.entries(acc)
+      .map(([dpto, regs]) => [dpto, calcularMPGDPromedio(regs)] as [string, number])
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8);
   }, [filtrados]);
 
   const porAnio = useMemo(() => {
-    const acc: Record<string, number> = {};
+    const acc: Record<string, typeof filtrados> = {};
     filtrados.forEach((r) => {
       const y = r.Fecha.substring(0, 4);
-      if (y) acc[y] = (acc[y] ?? 0) + r.Produccion;
+      if (y) {
+        if (!acc[y]) acc[y] = [];
+        acc[y].push(r);
+      }
     });
-    return Object.entries(acc).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(acc)
+      .map(([y, regs]) => [y, calcularMPGDPromedio(regs)] as [string, number])
+      .sort(([a], [b]) => a.localeCompare(b));
   }, [filtrados]);
 
   const chartBase = {
