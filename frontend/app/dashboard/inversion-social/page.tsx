@@ -398,11 +398,11 @@ export default function InversionSocialPage() {
         <DataTable
           data={filtrados}
           columns={[
+            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7, fontWeight: 700 }}>{v}</span> },
             { key: "Empresa", label: "Empresa", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{v}</span> },
             { key: "Departamento", label: "Departamento" },
             { key: "Municipio", label: "Municipio" },
             { key: "TipoProyecto", label: "Tipo Proyecto", render: (v) => <span style={{ fontSize: 12 }}>{v || "–"}</span> },
-            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7 }}>{v}</span> },
             { key: "MontoInvertido", label: "Monto", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-info)" }}>{formatCurrency(v, true)}</span> },
             { key: "Beneficiarios", label: "Beneficiarios", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-emphasis)" }}>{formatNum(v)}</span> },
           ]}

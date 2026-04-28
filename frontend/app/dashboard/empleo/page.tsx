@@ -194,7 +194,7 @@ export default function EmpleoPage() {
         <KPICard label="Total Empleos" value={fmtNum(total)} color="success" icon={HardHat} />
         <KPICard label="Empleo Local" value={fmtNum(kpis.local)} color="primary" icon={Home} />
         <KPICard label="Empleo Nacional" value={fmtNum(kpis.nacional)} color="info" icon={Globe} />
-        <KPICard label="Empleo Foráneo" value={fmtNum(kpis.foraneo)} color="secondary" icon={Plane} />
+        <KPICard label="% Empleo Local" value={total > 0 ? (kpis.local / total * 100).toFixed(1) : "0"} unit="%" color="secondary" icon={MapPin} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
@@ -270,13 +270,13 @@ export default function EmpleoPage() {
         <DataTable
           data={filtrados}
           columns={[
+            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7, fontWeight: 700 }}>{v}</span> },
             { key: "Empresa", label: "Empresa", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{v}</span> },
             { key: "Departamento", label: "Departamento" },
             { key: "Municipio", label: "Municipio" },
-            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7 }}>{v}</span> },
             { key: "EmpleoLocal", label: "Local", align: "right", render: (v) => <span style={{ color: "var(--color-emphasis)", fontWeight: 700 }}>{fmtNum(v)}</span> },
             { key: "EmpleoNacional", label: "Nacional", align: "right", render: (v) => <span style={{ color: "var(--color-info)", fontWeight: 600 }}>{fmtNum(v)}</span> },
-            { key: "EmpleoLocal", label: "Total", align: "right", sortable: false, filterable: false, render: (_v, row) => <span style={{ fontWeight: 800, color: "var(--color-text-primary)" }}>{fmtNum(row.EmpleoLocal + row.EmpleoNacional + row.EmpleoForaneo)}</span> },
+            { key: "EmpleoLocal", label: "Total", align: "right", sortable: false, filterable: false, render: (_v, row) => <span style={{ fontWeight: 800, color: "var(--color-text-primary)" }}>{fmtNum(row.EmpleoLocal + row.EmpleoNacional)}</span> },
           ]}
           pageSize={100}
         />

@@ -383,12 +383,12 @@ export default function Inversion1PctPage() {
         <DataTable
           data={filtrados}
           columns={[
+            { key: "anio", label: "Año", width: "80px", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{v || "—"}</span> },
             { key: "expediente", label: "Expediente", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{v || "—"}</span> },
             { key: "titular", label: "Titular", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
             { key: "sector", label: "Sector", render: (v) => <span className="badge info">{v}</span> },
             { key: "departamento", label: "Departamento" },
             { key: "municipio", label: "Municipio" },
-            { key: "anio", label: "Año", width: "80px", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{v || "—"}</span> },
           ]}
           pageSize={100}
         />
