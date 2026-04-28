@@ -376,7 +376,7 @@ export default function Inversion1PctPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Proyectos</span>
+          <span className="panel-title">Detalle: Inversión 1%</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
         <div className="table-wrapper">

@@ -338,7 +338,7 @@ function PanelIndicador({ tipo, tab }: { tipo: TabKey; tab: typeof TABS[0] }) {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Registros</span>
+          <span className="panel-title">Detalle: Seguridad</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Mostrando {Math.min(filtrados.length, 100)} de {filtrados.length}</span>
         </div>
         <div className="table-wrapper">

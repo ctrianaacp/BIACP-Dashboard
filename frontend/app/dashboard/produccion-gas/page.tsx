@@ -506,7 +506,7 @@ export default function ProduccionGasPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Producción</span>
+          <span className="panel-title">Detalle: Producción Gas</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
         <div className="table-wrapper">

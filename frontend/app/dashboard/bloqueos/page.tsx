@@ -397,7 +397,7 @@ export default function BloqueosPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Alarmas y Bloqueos</span>
+          <span className="panel-title">Detalle: Alarmas y Bloqueos</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
         <div className="table-wrapper">

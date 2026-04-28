@@ -392,7 +392,7 @@ export default function InversionSocialPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Proyectos Sociales</span>
+          <span className="panel-title">Detalle: Inversión Social</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
         <DataTable

@@ -18,6 +18,7 @@ import Loading from "@/components/Loading";
 import { formatNum } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -278,41 +279,22 @@ export default function ConsultaPreviaPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Registro de Procesos</span>
+          <span className="panel-title">Detalle: Consulta Previa</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Proyecto</th>
-                <th>Operador</th>
-                <th>Sector</th>
-                <th>Departamento</th>
-                <th>Municipio</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Código" className="font-mono" style={{ fontSize: 11 }}>{r.radicado || "—"}</td>
-                  <td data-label="Proyecto" style={{ fontWeight: 600 }}>{r.proyecto || "—"}</td>
-                  <td data-label="Operador">{r.empresa || "—"}</td>
-                  <td data-label="Sector"><span className="badge info">{r.sector || "—"}</span></td>
-                  <td data-label="Departamento">{r.departamento || "—"}</td>
-                  <td data-label="Municipio">{r.municipio || "—"}</td>
-                  <td data-label="Estado">
-                    <span className={`badge ${r.estado?.toLowerCase().includes("finalizado") ? "success" : "warning"}`}>
-                      {r.estado || "En trámite"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "radicado", label: "Código", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{v || "—"}</span> },
+            { key: "proyecto", label: "Proyecto", render: (v) => <span style={{ fontWeight: 600 }}>{v || "—"}</span> },
+            { key: "empresa", label: "Operador" },
+            { key: "sector", label: "Sector", render: (v) => <span className="badge info">{v || "—"}</span> },
+            { key: "departamento", label: "Departamento" },
+            { key: "municipio", label: "Municipio" },
+            { key: "estado", label: "Estado", render: (v) => <span className={`badge ${v?.toLowerCase().includes("finalizado") ? "success" : "warning"}`}>{v || "En trámite"}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import Loading from "@/components/Loading";
 import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 interface RegistroEmpleo {
   Empresa: string;
@@ -263,37 +264,22 @@ export default function EmpleoPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle de Empleos por Localidad</span>
+          <span className="panel-title">Detalle: Empleo</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table className="acp-table">
-            <thead>
-              <tr>
-                <th>Empresa</th>
-                <th>Departamento</th>
-                <th>Municipio</th>
-                <th>Año</th>
-                <th style={{ textAlign: "right" }}>Local</th>
-                <th style={{ textAlign: "right" }}>Nacional</th>
-                <th style={{ textAlign: "right" }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Empresa" style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>{r.Empresa}</td>
-                  <td data-label="Departamento">{r.Departamento}</td>
-                  <td data-label="Municipio">{r.Municipio}</td>
-                  <td data-label="Año" style={{ opacity: 0.7 }}>{r.Anio}</td>
-                  <td data-label="Local" style={{ textAlign: "right", color: "var(--color-emphasis)", fontWeight: 700 }}>{fmtNum(r.EmpleoLocal)}</td>
-                  <td data-label="Nacional" style={{ textAlign: "right", color: 'var(--color-info)', fontWeight: 600 }}>{fmtNum(r.EmpleoNacional)}</td>
-                  <td data-label="Total" style={{ textAlign: "right", fontWeight: 800, color: 'var(--color-text-primary)' }}>{fmtNum(r.EmpleoLocal + r.EmpleoNacional + r.EmpleoForaneo)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "Empresa", label: "Empresa", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{v}</span> },
+            { key: "Departamento", label: "Departamento" },
+            { key: "Municipio", label: "Municipio" },
+            { key: "Anio", label: "Año", width: "80px", render: (v) => <span style={{ opacity: 0.7 }}>{v}</span> },
+            { key: "EmpleoLocal", label: "Local", align: "right", render: (v) => <span style={{ color: "var(--color-emphasis)", fontWeight: 700 }}>{fmtNum(v)}</span> },
+            { key: "EmpleoNacional", label: "Nacional", align: "right", render: (v) => <span style={{ color: "var(--color-info)", fontWeight: 600 }}>{fmtNum(v)}</span> },
+            { key: "EmpleoLocal", label: "Total", align: "right", sortable: false, filterable: false, render: (_v, row) => <span style={{ fontWeight: 800, color: "var(--color-text-primary)" }}>{fmtNum(row.EmpleoLocal + row.EmpleoNacional + row.EmpleoForaneo)}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

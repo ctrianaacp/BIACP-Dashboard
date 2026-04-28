@@ -263,7 +263,7 @@ export default function ZomacPdetPage() {
       </div>
 
       <div className="panel">
-        <div className="panel-header"><span className="panel-title">Detalle de Beneficios Tributarios</span></div>
+        <div className="panel-header"><span className="panel-title">Detalle: ZOMAC / PDET</span></div>
         <div className="table-wrapper">
           <table>
             <thead>
