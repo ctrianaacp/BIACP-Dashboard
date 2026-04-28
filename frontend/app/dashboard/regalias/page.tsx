@@ -16,6 +16,7 @@ import {
 import Loading from "@/components/Loading";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -272,41 +273,24 @@ export default function RegaliasPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Distribución por Entidad (Top 10)</span>
+          <span className="panel-title">Detalle: Distribución por Entidad (Top 10)</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{topEntidades.length} entidades totales</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Entidad / Asignación</th>
-                <th style={{ textAlign: "right" }}>Aprop. Definitiva</th>
-                <th style={{ textAlign: "right" }}>Compromisos</th>
-                <th style={{ textAlign: "right" }}>Pagos</th>
-                <th style={{ textAlign: "right" }}>% Ejec.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topEntidades.map(([entidad, val], i) => {
-                const r = filtrados.find(f => f.entidad === entidad);
-                const ejec = val > 0 ? ((r?.compromisos ?? 0) / val) * 100 : 0;
-                return (
-                  <tr key={i}>
-                    <td data-label="Entidad" style={{ fontWeight: 600 }}>{entidad}</td>
-                    <td data-label="Aprop. Definitiva" style={{ textAlign: "right", fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(val)}</td>
-                    <td data-label="Compromisos" style={{ textAlign: "right" }}>{fmtCOP(r?.compromisos ?? 0)}</td>
-                    <td data-label="Pagos" style={{ textAlign: "right" }}>{fmtCOP(r?.pagos ?? 0)}</td>
-                    <td data-label="% Ejec." style={{ textAlign: "right" }}>
-                      <span className={`badge ${ejec >= 50 ? "success" : "warning"}`}>
-                        {ejec.toFixed(1)}%
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={topEntidades.map(([entidad, val]) => {
+            const r = filtrados.find(f => f.entidad === entidad);
+            const ejec = val > 0 ? ((r?.compromisos ?? 0) / val) * 100 : 0;
+            return { entidad, aprop_def: val, compromisos: r?.compromisos ?? 0, pagos: r?.pagos ?? 0, ejec };
+          })}
+          columns={[
+            { key: "entidad", label: "Entidad / Asignación", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "aprop_def", label: "Aprop. Definitiva", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(v)}</span> },
+            { key: "compromisos", label: "Compromisos", align: "right", render: (v) => fmtCOP(v) },
+            { key: "pagos", label: "Pagos", align: "right", render: (v) => fmtCOP(v) },
+            { key: "ejec", label: "% Ejec.", align: "right", render: (v) => <span className={`badge ${Number(v) >= 50 ? "success" : "warning"}`}>{Number(v).toFixed(1)}%</span> },
+          ]}
+          pageSize={10}
+        />
       </div>
     </div>
   );

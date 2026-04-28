@@ -18,6 +18,7 @@ import Loading from "@/components/Loading";
 import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -379,32 +380,18 @@ export default function Inversion1PctPage() {
           <span className="panel-title">Detalle: Inversión 1%</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Expediente</th>
-                <th>Titular</th>
-                <th>Sector</th>
-                <th>Departamento</th>
-                <th>Municipio</th>
-                <th>Año</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Expediente" className="font-mono" style={{ fontSize: 11 }}>{r.expediente || "—"}</td>
-                  <td data-label="Titular" style={{ fontWeight: 600 }}>{r.titular}</td>
-                  <td data-label="Sector"><span className="badge info">{r.sector}</span></td>
-                  <td data-label="Departamento">{r.departamento}</td>
-                  <td data-label="Municipio">{r.municipio}</td>
-                  <td data-label="Año" style={{ fontWeight: 700, color: "var(--color-primary)" }}>{r.anio || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "expediente", label: "Expediente", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{v || "—"}</span> },
+            { key: "titular", label: "Titular", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "sector", label: "Sector", render: (v) => <span className="badge info">{v}</span> },
+            { key: "departamento", label: "Departamento" },
+            { key: "municipio", label: "Municipio" },
+            { key: "anio", label: "Año", width: "80px", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{v || "—"}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

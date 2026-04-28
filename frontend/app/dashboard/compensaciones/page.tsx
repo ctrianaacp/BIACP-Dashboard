@@ -20,6 +20,7 @@ import {
 import Loading from "@/components/Loading";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -368,41 +369,19 @@ export default function CompensacionesPage() {
           <span className="panel-title">Detalle: Compensaciones Ambientales</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Expediente</th>
-                <th>Operador</th>
-                <th>Marco</th>
-                <th>Estado</th>
-                <th style={{ textAlign: "right" }}>Ha. Comp.</th>
-                <th style={{ textAlign: "right" }}>Ha. Ejec.</th>
-                <th style={{ textAlign: "right" }}>%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => {
-                const pct = r.areaComp > 0 ? (r.areaEjec / r.areaComp) * 100 : 0;
-                return (
-                  <tr key={i}>
-                    <td data-label="Expediente" className="font-mono" style={{ fontSize: 11 }}>{r.expediente || "—"}</td>
-                    <td data-label="Operador">{r.operador}</td>
-                    <td data-label="Marco"><span className="badge info">{r.marco}</span></td>
-                    <td data-label="Estado">
-                      <span className={`badge ${r.estado === 2 ? "success" : r.estado === 3 ? "danger" : "warning"}`}>
-                        {labelEstado(r.estado)}
-                      </span>
-                    </td>
-                    <td data-label="Ha. Comp." style={{ textAlign: "right" }}>{fmt(r.areaComp)}</td>
-                    <td data-label="Ha. Ejec." style={{ textAlign: "right", fontWeight: 700, color: "var(--color-emphasis)" }}>{fmt(r.areaEjec)}</td>
-                    <td data-label="%" style={{ textAlign: "right", fontWeight: 900 }}>{pct.toFixed(0)}%</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "expediente", label: "Expediente", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 11 }}>{v || "—"}</span> },
+            { key: "operador", label: "Operador" },
+            { key: "marco", label: "Marco", render: (v) => <span className="badge info">{v}</span> },
+            { key: "estado", label: "Estado", render: (v) => <span className={`badge ${v === 2 ? "success" : v === 3 ? "danger" : "warning"}`}>{labelEstado(v)}</span> },
+            { key: "areaComp", label: "Ha. Comp.", align: "right", render: (v) => fmt(v) },
+            { key: "areaEjec", label: "Ha. Ejec.", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-emphasis)" }}>{fmt(v)}</span> },
+            { key: "areaComp", label: "%", align: "right", sortable: false, filterable: false, render: (_v, row) => <span style={{ fontWeight: 900 }}>{row.areaComp > 0 ? ((row.areaEjec / row.areaComp) * 100).toFixed(0) : 0}%</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

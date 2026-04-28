@@ -8,6 +8,7 @@ import { normalizarDepartamento, normalizarMunicipio, normalizarOperadora } from
 import Loading from "@/components/Loading";
 import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
+import DataTable from "@/components/DataTable";
 import MultiSelect from "@/components/MultiSelect";
 import { 
   Flame, 
@@ -509,34 +510,18 @@ export default function ProduccionGasPage() {
           <span className="panel-title">Detalle: Producción Gas</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Departamento</th>
-                <th>Municipio</th>
-                <th>Operadora</th>
-                <th>Campo</th>
-                <th style={{ textAlign: "right" }}>MPCD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Fecha" className="font-mono" style={{ fontSize: 12 }}>{r.Fecha}</td>
-                  <td data-label="Departamento">{r.Departamento}</td>
-                  <td data-label="Municipio">{r.Municipio}</td>
-                  <td data-label="Operadora" style={{ fontWeight: 600 }}>{r.Operadora}</td>
-                  <td data-label="Campo">{r.Campo}</td>
-                  <td data-label="MPCD" style={{ textAlign: "right", fontWeight: 700, color: "var(--color-secondary)" }}>
-                    {r.Produccion.toLocaleString("es-CO", { maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "Fecha", label: "Fecha", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{v}</span> },
+            { key: "Departamento", label: "Departamento" },
+            { key: "Municipio", label: "Municipio" },
+            { key: "Operadora", label: "Operadora", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "Campo", label: "Campo" },
+            { key: "Produccion", label: "MPCD", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{Number(v).toLocaleString("es-CO", { maximumFractionDigits: 2 })}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ import Loading from "@/components/Loading";
 import { formatNum } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface RegistroBloqueo {
@@ -400,41 +401,19 @@ export default function BloqueosPage() {
           <span className="panel-title">Detalle: Alarmas y Bloqueos</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Departamento</th>
-                <th>Municipio</th>
-                <th>Operadora</th>
-                <th style={{ textAlign: "right" }}>Días</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Fecha" className="font-mono" style={{ fontSize: 11, opacity: 0.7 }}>{r.Fecha}</td>
-                  <td data-label="Tipo"><span className={`badge ${r.TipoEvento.includes("Bloqueo") ? "badge-bloqueo" : "badge-alarma"}`}>{r.TipoEvento}</span></td>
-                  <td data-label="Departamento">{r.Departamento}</td>
-                  <td data-label="Municipio">{r.Municipio}</td>
-                  <td data-label="Operadora" style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>{r.Operadora}</td>
-                  <td data-label="Días" style={{ textAlign: "right", fontWeight: 700 }}>{r.DuracionDias}</td>
-                  <td data-label="Estado">{r.Estado}</td>
-                </tr>
-              ))}
-              {filtrados.length === 0 && (
-                <tr>
-                  <td colSpan={7} style={{textAlign:"center", padding:40, color:"var(--color-text-muted)"}}>
-                    Sin datos que mostrar. Prueba ajustando los filtros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "Fecha", label: "Fecha", width: "100px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 11, opacity: 0.7 }}>{v}</span> },
+            { key: "TipoEvento", label: "Tipo", render: (v) => <span className={`badge ${String(v).includes("Bloqueo") ? "badge-bloqueo" : "badge-alarma"}`}>{v}</span> },
+            { key: "Departamento", label: "Departamento" },
+            { key: "Municipio", label: "Municipio" },
+            { key: "Operadora", label: "Operadora", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{v}</span> },
+            { key: "DuracionDias", label: "Días", align: "right", render: (v) => <span style={{ fontWeight: 700 }}>{v}</span> },
+            { key: "Estado", label: "Estado" },
+          ]}
+          pageSize={100}
+        />
       </div>
     </div>
   );

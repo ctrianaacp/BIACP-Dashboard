@@ -25,6 +25,7 @@ import Loading from "@/components/Loading";
 import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -341,38 +342,18 @@ function PanelIndicador({ tipo, tab }: { tipo: TabKey; tab: typeof TABS[0] }) {
           <span className="panel-title">Detalle: Seguridad</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Mostrando {Math.min(filtrados.length, 100)} de {filtrados.length}</span>
         </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Periodo</th>
-                <th>Ubicación</th>
-                <th>Descripción / Modalidad</th>
-                <th style={{ textAlign: "right" }}>Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.slice(0, 100).map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Periodo">
-                    <div style={{ fontWeight: 700, color: "var(--color-primary)" }}>{r.anio}</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{r.mes}</div>
-                  </td>
-                  <td data-label="Ubicación">
-                    <div style={{ fontWeight: 600 }}>{r.departamento}</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{r.municipio}</div>
-                  </td>
-                  <td data-label="Descripción">
-                     <span style={{ fontSize: 12 }}>{r.descripcion || "—"}</span>
-                  </td>
-                  <td data-label="Cantidad" style={{ textAlign: "right", fontWeight: 800, color: tab.color }}>
-                    {r.cantidad.toLocaleString("es-CO")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "anio", label: "Año", width: "70px", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{v}</span> },
+            { key: "mes", label: "Mes", render: (v) => <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{v}</span> },
+            { key: "departamento", label: "Departamento", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "municipio", label: "Municipio" },
+            { key: "descripcion", label: "Descripción", render: (v) => <span style={{ fontSize: 12 }}>{v || "—"}</span> },
+            { key: "cantidad", label: "Cantidad", align: "right", render: (v) => <span style={{ fontWeight: 800, color: tab.color }}>{Number(v).toLocaleString("es-CO")}</span> },
+          ]}
+          pageSize={100}
+        />
       </div>
     </>
   );

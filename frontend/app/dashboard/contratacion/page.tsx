@@ -22,6 +22,7 @@ import Loading from "@/components/Loading";
 import { formatNum, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 
 // Cifras Sociales – hoja BYS (Bienes y Servicios)
 interface RegistroBYS {
@@ -350,6 +351,21 @@ export default function ContratacionPage() {
             />
           )}
         </div>
+      </div>
+
+      <div className="panel" style={{ marginTop: 24 }}>
+        <div className="panel-header">
+          <span className="panel-title">Detalle: Bienes y Servicios</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{topDepts.length} departamentos</span>
+        </div>
+        <DataTable
+          data={topDepts}
+          columns={[
+            { key: "departamento", label: "Departamento", render: (v: any) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "valor", label: "Inversión Total", align: "right", render: (v: any) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{formatCurrency(Number(v), false)}</span> },
+          ]}
+          pageSize={20}
+        />
       </div>
       
       <style jsx>{`

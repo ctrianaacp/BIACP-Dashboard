@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
+import DataTable from "@/components/DataTable";
 import { formatNum } from "@/lib/formatters";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -237,55 +238,29 @@ export default function ZomacPdetPage() {
       </div>
 
       <div className="panel">
-        <div className="panel-header"><span className="panel-title">Listado de Subregiones PDET</span></div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Subregión</th>
-                <th>Departamentos</th>
-                <th style={{ textAlign: "right" }}>Municipios</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map((d, i) => (
-                <tr key={i}>
-                  <td data-label="Subregión" style={{ fontWeight: 700 }}>{d.subregion}</td>
-                  <td data-label="Departamentos" style={{ fontSize: "0.85rem" }}>{d.dptos.join(", ")}</td>
-                  <td data-label="Municipios" style={{ textAlign: "right", fontWeight: 800, color: "var(--color-primary)" }}>{d.municipios}</td>
-                  <td data-label="Estado"><span className="badge success">Activo</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <div className="panel-header"><span className="panel-title">Detalle: Subregiones PDET</span></div>
+        <DataTable
+          data={filtrados}
+          columns={[
+            { key: "subregion", label: "Subregión", render: (v) => <span style={{ fontWeight: 700 }}>{v}</span> },
+            { key: "dptos", label: "Departamentos", sortable: false, filterable: false, render: (v) => <span style={{ fontSize: "0.85rem" }}>{(v as string[]).join(", ")}</span> },
+            { key: "municipios", label: "Municipios", align: "right", render: (v) => <span style={{ fontWeight: 800, color: "var(--color-primary)" }}>{v}</span> },
+          ]}
+          pageSize={20}
+        />
       </div>
 
       <div className="panel">
         <div className="panel-header"><span className="panel-title">Detalle: ZOMAC / PDET</span></div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Beneficio</th>
-                <th>Incentivo / Condición</th>
-                <th>Población Objetivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {BENEFICIOS.map((b, i) => (
-                <tr key={i}>
-                  <td data-label="Beneficio" style={{ fontWeight: 700 }}>{b.beneficio}</td>
-                  <td data-label="Incentivo">
-                    <span style={{ color: "var(--color-emphasis)", fontWeight: 700 }}>{b.descuento}</span>
-                  </td>
-                  <td data-label="Aplica" style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{b.aplica}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={BENEFICIOS}
+          columns={[
+            { key: "beneficio", label: "Beneficio", render: (v) => <span style={{ fontWeight: 700 }}>{v}</span> },
+            { key: "descuento", label: "Incentivo / Condición", render: (v) => <span style={{ color: "var(--color-emphasis)", fontWeight: 700 }}>{v}</span> },
+            { key: "aplica", label: "Población Objetivo", render: (v) => <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>{v}</span> },
+          ]}
+          pageSize={10}
+        />
       </div>
     </div>
   );
