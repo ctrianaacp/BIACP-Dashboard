@@ -99,13 +99,23 @@ export async function GET(request: Request) {
         municipios: (await query(`SELECT DISTINCT municipio_raw FROM hecho_bienes_servicios WHERE municipio_raw IS NOT NULL ORDER BY municipio_raw`)).rows.map(r => r.municipio_raw)
       };
 
+      // Muestra de registros para la tabla de detalle (limitado a 2000 para no bloquear el navegador)
+      const rawData = await query(`
+        SELECT anio, empresa_raw as empresa, departamento_raw as departamento, municipio_raw as municipio, valor_cop as compras_directas, etapa
+        FROM hecho_bienes_servicios
+        ${whereStr}
+        ORDER BY valor_cop DESC
+        LIMIT 2000
+      `, params);
+
       return NextResponse.json({
         summary: stats.rows,
         by_department: byDept.rows,
         by_etapa: byEtapa,
         by_company_dept: byCompanyDept.rows,
         by_company_mun: byCompanyMun.rows,
-        filters: filterOptions
+        filters: filterOptions,
+        raw_data: rawData.rows
       });
     }
 

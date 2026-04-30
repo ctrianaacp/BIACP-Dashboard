@@ -35,6 +35,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/produccion-petroleo", label: "Producción Petróleo", icon: Droplets, section: "producción" },
   { href: "/dashboard/mapa-petroleo", label: "Mapa Petróleo", icon: Map, section: "producción" },
   { href: "/dashboard/produccion-gas", label: "Producción Gas", icon: Wind, section: "producción" },
+  { href: "/dashboard/mapa-gas", label: "Mapa Gas", icon: Map, section: "producción" },
   { href: "/dashboard/compensaciones", label: "Compensaciones Amb.", icon: Leaf, section: "ambiental" },
   { href: "/dashboard/inversion-1pct", label: "Inversión 1%", icon: Waves, section: "ambiental" },
   { href: "/dashboard/bloqueos", label: "SIM Bloqueos", icon: AlertCircle, section: "conflictividad" },
@@ -153,6 +154,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {sidebarAbierto ? <X size={24} /> : <Menu size={24} />}
           </button>
+
+          <img 
+            src="/images/logo-biacp.png" 
+            alt="BIACP Logo" 
+            className="mobile-logo"
+          />
 
           <div className="topbar-left">
             <span className="topbar-title">

@@ -19,7 +19,7 @@ import {
   Home 
 } from "lucide-react";
 import Loading from "@/components/Loading";
-import { formatNum, formatCurrency } from "@/lib/formatters";
+import { formatNum, formatCurrency, formatAbbr } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
 import DataTable from "@/components/DataTable";
@@ -40,6 +40,78 @@ const chartBase = {
 // Centralizado en lib/formatters
 
 import axios from "axios";
+
+function excelDateToISO(serial: unknown): string {
+  if (serial === null || serial === undefined || serial === "") return "";
+  if (serial instanceof Date) {
+    if (isNaN(serial.getTime())) return "";
+    const y = serial.getUTCFullYear();
+    const m = String(serial.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(serial.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof serial === "string") {
+    if (serial.trim() === "") return "";
+    if (serial.includes("-") && serial.length >= 7) return serial.substring(0, 10);
+    const parsed = new Date(serial);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().substring(0, 10);
+    return serial;
+  }
+  const num = Number(serial);
+  if (isNaN(num) || num < 1 || num > 100000) return "";
+  try {
+    const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+    if (isNaN(date.getTime())) return "";
+    return date.toISOString().substring(0, 10);
+  } catch {
+    return "";
+  }
+}
+
+function calcularPromedioMensual(registros: any[], campoValor: string): number {
+  if (registros.length === 0) return 0;
+  const porMes: Record<string, number> = {};
+  for (const r of registros) {
+    const key = r.Fecha.substring(0, 7);
+    if (!key || key.length < 7) continue;
+    porMes[key] = (porMes[key] ?? 0) + r[campoValor];
+  }
+  const valores = Object.values(porMes);
+  if (valores.length === 0) return 0;
+  return valores.reduce((s, v) => s + v, 0) / valores.length;
+}
+
+async function cargarPetroleo(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.petroleoConsolidado.site,
+    SHAREPOINT_FILES.petroleoConsolidado.path,
+    SHAREPOINT_FILES.petroleoConsolidado.table,
+    instance,
+    account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
+async function cargarGas(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.gasConsolidado.site,
+    SHAREPOINT_FILES.gasConsolidado.path,
+    SHAREPOINT_FILES.gasConsolidado.table,
+    instance,
+    account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
 
 async function cargarInvSocial(): Promise<RegistroInvSocial[]> {
   const response = await axios.get("/api/social-impact");
@@ -236,6 +308,7 @@ function KPICard({ label, value, unit, color, icon: Icon }: { label: string; val
 }
 
 export default function InversionSocialPage() {
+  const { instance, accounts } = useMsal();
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [filtroOp, setFiltroOp] = useState<string[]>([]);
   const [filtroDpto, setFiltroDpto] = useState<string[]>([]);
@@ -279,6 +352,65 @@ export default function InversionSocialPage() {
     filtrados.forEach(r => { acc[r.Empresa] = (acc[r.Empresa]??0) + r.MontoInvertido; });
     return Object.entries(acc).sort(([,a],[,b])=>b-a).slice(0,10);
   },[filtrados]);
+
+  const { data: petroleo } = useQuery({
+    queryKey: ["produccion-petroleo-basico-inv"],
+    queryFn: () => cargarPetroleo(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: gas } = useQuery({
+    queryKey: ["produccion-gas-basico-inv"],
+    queryFn: () => cargarGas(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const chartSeriesCruce = useMemo(() => {
+    if (!petroleo || !gas || registros.length === 0) return null;
+
+    const pPorAnio: Record<string, any[]> = {};
+    petroleo.forEach((r: any) => {
+      const y = r.Fecha.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!pPorAnio[y]) pPorAnio[y] = [];
+      pPorAnio[y].push(r);
+    });
+    
+    const gPorAnio: Record<string, any[]> = {};
+    gas.forEach((r: any) => {
+      const y = r.Fecha.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!gPorAnio[y]) gPorAnio[y] = [];
+      gPorAnio[y].push(r);
+    });
+
+    const iPorAnio: Record<string, number> = {};
+    filtrados.forEach((r: any) => {
+      const y = r.Anio;
+      if (!y) return;
+      iPorAnio[y] = (iPorAnio[y] ?? 0) + r.MontoInvertido;
+    });
+
+    const allYears = new Set<string>();
+    Object.keys(pPorAnio).forEach(y => allYears.add(y));
+    Object.keys(gPorAnio).forEach(y => allYears.add(y));
+    Object.keys(iPorAnio).forEach(y => allYears.add(y));
+
+    const yearsSorted = Array.from(allYears).sort((a, b) => a.localeCompare(b)).filter(y => y !== 'null');
+
+    const dataPetroleo = yearsSorted.map(y => pPorAnio[y] ? calcularPromedioMensual(pPorAnio[y], 'Produccion') : 0);
+    const dataGas = yearsSorted.map(y => gPorAnio[y] ? calcularPromedioMensual(gPorAnio[y], 'Produccion') : 0);
+    const dataInv = yearsSorted.map(y => iPorAnio[y] || 0);
+
+    return {
+      categories: yearsSorted,
+      petroleo: dataPetroleo,
+      gas: dataGas,
+      inv: dataInv
+    };
+  }, [petroleo, gas, filtrados, registros]);
 
   const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMpio].filter(v => v.length > 0).length;
 
@@ -344,6 +476,71 @@ export default function InversionSocialPage() {
         <KPICard label="Beneficiarios" value={formatNum(kpis.beneficiarios)} color="success" icon={Users} />
         <KPICard label="Proyectos" value={formatNum(kpis.proyectos)} color="primary" icon={FileText} />
         <KPICard label="Empresas" value={formatNum(kpis.empresas)} color="secondary" icon={Building2} />
+      </div>
+
+      <div className="panel" id="panel-cruce-historico-inv" style={{ marginBottom: 32 }}>
+        <div className="panel-header">
+          <span className="panel-title">Evolución Inversión Social y Producción de Petróleo y Gas</span>
+          <ExportButton targetId="panel-cruce-historico-inv" fileName="Cruce_InversionSocial_Produccion" />
+        </div>
+        <div className="panel-body">
+          {typeof window !== "undefined" && chartSeriesCruce ? (
+            <Chart
+              type="line"
+              height={450}
+              series={[
+                { name: "Inversión Social (COP)", type: "column", data: chartSeriesCruce.inv },
+                { name: "Producción Petróleo (BPDC)", type: "line", data: chartSeriesCruce.petroleo.map(v => Math.round(v)) },
+                { name: "Producción Gas (MPCD)", type: "line", data: chartSeriesCruce.gas.map(v => Math.round(v)) },
+              ]}
+              options={{
+                ...chartBase,
+                stroke: { width: [0, 4, 4], curve: 'smooth' },
+                xaxis: { categories: chartSeriesCruce.categories },
+                colors: ["#0277BD", "#D44D03", "#003745"],
+                dataLabels: { enabled: false },
+                yaxis: [
+                  {
+                    title: { text: "Inversión COP", style: { color: "#0277BD", fontWeight: 700 } },
+                    labels: { style: { colors: "#0277BD" }, formatter: (v: number) => formatCurrency(v, true) },
+                  },
+                  {
+                    opposite: true,
+                    title: { text: "BPDC / MPCD", style: { color: "#D44D03", fontWeight: 700 } },
+                    labels: { style: { colors: "#D44D03" }, formatter: (v: number) => formatAbbr(v) },
+                  },
+                  {
+                    show: false,
+                    opposite: true,
+                    title: { text: "MPCD", style: { color: "#003745", fontWeight: 700 } },
+                    labels: { style: { colors: "#003745" }, formatter: (v: number) => formatAbbr(v) },
+                  }
+                ],
+                tooltip: {
+                  shared: true,
+                  intersect: false,
+                  y: {
+                    formatter: function (y, { seriesIndex }) {
+                      if (typeof y !== "undefined") {
+                        if (seriesIndex === 0) return formatCurrency(y, false) + " COP";
+                        if (seriesIndex === 1) return formatAbbr(y) + " BPDC";
+                        if (seriesIndex === 2) return formatAbbr(y) + " MPCD";
+                      }
+                      return y;
+                    }
+                  }
+                },
+                legend: { 
+                  position: 'top', 
+                  horizontalAlign: 'center',
+                  itemMargin: { horizontal: 15, vertical: 5 }
+                }
+              }}
+            />
+          ) : (
+            <div style={{height:450, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-text-muted)'}}>Cargando datos de producción y gas...</div>
+          )}
+        </div>
       </div>
 
       <ODSImpactSection anio={filtroAnio} empresa={filtroOp} dpto={filtroDpto} mpio={filtroMpio} />

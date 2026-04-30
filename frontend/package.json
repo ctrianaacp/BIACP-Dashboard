@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
-    "tunnel": "ssh -L 5433:localhost:5433 root@74.208.130.203 -N",
+    "dev": "next dev -p 3007",
+    "tunnel": "ssh -L 5433:127.0.0.1:5432 root@74.208.130.203 -N",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

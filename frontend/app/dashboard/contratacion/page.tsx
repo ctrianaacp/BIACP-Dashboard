@@ -19,7 +19,7 @@ import {
   DollarSign 
 } from "lucide-react";
 import Loading from "@/components/Loading";
-import { formatNum, formatCurrency } from "@/lib/formatters";
+import { formatNum, formatCurrency, formatAbbr } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
 import DataTable from "@/components/DataTable";
@@ -40,6 +40,78 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 import axios from "axios";
 
+function excelDateToISO(serial: unknown): string {
+  if (serial === null || serial === undefined || serial === "") return "";
+  if (serial instanceof Date) {
+    if (isNaN(serial.getTime())) return "";
+    const y = serial.getUTCFullYear();
+    const m = String(serial.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(serial.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof serial === "string") {
+    if (serial.trim() === "") return "";
+    if (serial.includes("-") && serial.length >= 7) return serial.substring(0, 10);
+    const parsed = new Date(serial);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().substring(0, 10);
+    return serial;
+  }
+  const num = Number(serial);
+  if (isNaN(num) || num < 1 || num > 100000) return "";
+  try {
+    const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+    if (isNaN(date.getTime())) return "";
+    return date.toISOString().substring(0, 10);
+  } catch {
+    return "";
+  }
+}
+
+function calcularPromedioMensual(registros: any[], campoValor: string): number {
+  if (registros.length === 0) return 0;
+  const porMes: Record<string, number> = {};
+  for (const r of registros) {
+    const key = r.Fecha.substring(0, 7);
+    if (!key || key.length < 7) continue;
+    porMes[key] = (porMes[key] ?? 0) + r[campoValor];
+  }
+  const valores = Object.values(porMes);
+  if (valores.length === 0) return 0;
+  return valores.reduce((s, v) => s + v, 0) / valores.length;
+}
+
+async function cargarPetroleo(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.petroleoConsolidado.site,
+    SHAREPOINT_FILES.petroleoConsolidado.path,
+    SHAREPOINT_FILES.petroleoConsolidado.table,
+    instance,
+    account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
+async function cargarGas(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.gasConsolidado.site,
+    SHAREPOINT_FILES.gasConsolidado.path,
+    SHAREPOINT_FILES.gasConsolidado.table,
+    instance,
+    account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
 async function cargarBYS() {
   const { data } = await axios.get("/api/stats/dashboard?type=bienes-servicios");
   return data;
@@ -56,6 +128,7 @@ function KPICard({ label, value, unit, color, icon: Icon }: { label: string; val
 }
 
 export default function ContratacionPage() {
+  const { instance, accounts } = useMsal();
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [filtroAnio, setFiltroAnio] = useState<string[]>([]);
   const [filtroOp, setFiltroOp] = useState<string[]>([]);
@@ -72,6 +145,61 @@ export default function ContratacionPage() {
   const empresas = ["Todas", ...(data?.filters?.empresas || [])];
   const departamentos = ["Todos", ...(data?.filters?.departamentos || [])];
   const municipios = ["Todos", ...(data?.filters?.municipios || [])];
+
+  const { data: petroleo } = useQuery({
+    queryKey: ["produccion-petroleo-basico"],
+    queryFn: () => cargarPetroleo(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: gas } = useQuery({
+    queryKey: ["produccion-gas-basico"],
+    queryFn: () => cargarGas(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const chartSeriesCruce = useMemo(() => {
+    if (!petroleo || !gas || !data?.summary) return null;
+
+    const pPorAnio: Record<string, any[]> = {};
+    petroleo.forEach((r: any) => {
+      const y = r.Fecha.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!pPorAnio[y]) pPorAnio[y] = [];
+      pPorAnio[y].push(r);
+    });
+    
+    const gPorAnio: Record<string, any[]> = {};
+    gas.forEach((r: any) => {
+      const y = r.Fecha.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!gPorAnio[y]) gPorAnio[y] = [];
+      gPorAnio[y].push(r);
+    });
+
+    const allYears = new Set<string>();
+    Object.keys(pPorAnio).forEach(y => allYears.add(y));
+    Object.keys(gPorAnio).forEach(y => allYears.add(y));
+    data.summary.forEach((s: any) => allYears.add(String(s.anio)));
+
+    const yearsSorted = Array.from(allYears).sort((a, b) => a.localeCompare(b)).filter(y => y !== 'null');
+
+    const dataPetroleo = yearsSorted.map(y => pPorAnio[y] ? calcularPromedioMensual(pPorAnio[y], 'Produccion') : 0);
+    const dataGas = yearsSorted.map(y => gPorAnio[y] ? calcularPromedioMensual(gPorAnio[y], 'Produccion') : 0);
+    const dataBys = yearsSorted.map(y => {
+      const match = data.summary.find((s: any) => String(s.anio) === y);
+      return match ? Number(match.total_valor) : 0;
+    });
+
+    return {
+      categories: yearsSorted,
+      petroleo: dataPetroleo,
+      gas: dataGas,
+      bys: dataBys
+    };
+  }, [petroleo, gas, data]);
 
   const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMun].filter(v => v.length > 0).length;
 
@@ -327,6 +455,71 @@ export default function ContratacionPage() {
         </div>
       </div>
 
+      <div className="panel" id="panel-cruce-historico" style={{ marginTop: 24 }}>
+        <div className="panel-header">
+          <span className="panel-title">Evolución Inversión Bienes y Servicios y Producción de Petróleo y Gas</span>
+          <ExportButton targetId="panel-cruce-historico" fileName="Cruce_Produccion_Contratacion" />
+        </div>
+        <div className="panel-body">
+          {typeof window !== "undefined" && chartSeriesCruce ? (
+            <Chart
+              type="line"
+              height={450}
+              series={[
+                { name: "Inversión Bienes y Servicios (COP)", type: "column", data: chartSeriesCruce.bys },
+                { name: "Producción Petróleo (BPDC)", type: "line", data: chartSeriesCruce.petroleo.map(v => Math.round(v)) },
+                { name: "Producción Gas (MPCD)", type: "line", data: chartSeriesCruce.gas.map(v => Math.round(v)) },
+              ]}
+              options={{
+                ...chartBase,
+                stroke: { width: [0, 4, 4], curve: 'smooth' },
+                xaxis: { categories: chartSeriesCruce.categories },
+                colors: ["#10b981", "#D44D03", "#003745"],
+                dataLabels: { enabled: false },
+                yaxis: [
+                  {
+                    title: { text: "Inversión COP", style: { color: "#10b981", fontWeight: 700 } },
+                    labels: { style: { colors: "#10b981" }, formatter: (v: number) => formatCurrency(v, true) },
+                  },
+                  {
+                    opposite: true,
+                    title: { text: "BPDC / MPCD", style: { color: "#D44D03", fontWeight: 700 } },
+                    labels: { style: { colors: "#D44D03" }, formatter: (v: number) => formatAbbr(v) },
+                  },
+                  {
+                    show: false,
+                    opposite: true,
+                    title: { text: "MPCD", style: { color: "#003745", fontWeight: 700 } },
+                    labels: { style: { colors: "#003745" }, formatter: (v: number) => formatAbbr(v) },
+                  }
+                ],
+                tooltip: {
+                  shared: true,
+                  intersect: false,
+                  y: {
+                    formatter: function (y, { seriesIndex }) {
+                      if (typeof y !== "undefined") {
+                        if (seriesIndex === 0) return formatCurrency(y, false) + " COP";
+                        if (seriesIndex === 1) return formatAbbr(y) + " BPDC";
+                        if (seriesIndex === 2) return formatAbbr(y) + " MPCD";
+                      }
+                      return y;
+                    }
+                  }
+                },
+                legend: { 
+                  position: 'top', 
+                  horizontalAlign: 'center',
+                  itemMargin: { horizontal: 15, vertical: 5 }
+                }
+              }}
+            />
+          ) : (
+            <div style={{height:450, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-text-muted)'}}>Cargando datos de producción y gas...</div>
+          )}
+        </div>
+      </div>
+
       <div className="panel" id="panel-contrato-hist" style={{ marginTop: 24 }}>
         <div className="panel-header">
           <span className="panel-title">Histórico de Inversión Anual</span>
@@ -356,15 +549,19 @@ export default function ContratacionPage() {
       <div className="panel" style={{ marginTop: 24 }}>
         <div className="panel-header">
           <span className="panel-title">Detalle: Bienes y Servicios</span>
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{topDepts.length} departamentos</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{(data?.raw_data || []).length} registros (Muestra)</span>
         </div>
         <DataTable
-          data={topDepts}
+          data={data?.raw_data || []}
           columns={[
-            { key: "departamento", label: "Departamento", render: (v: any) => <span style={{ fontWeight: 600 }}>{v}</span> },
-            { key: "valor", label: "Inversión Total", align: "right", render: (v: any) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{formatCurrency(Number(v), false)}</span> },
+            { key: "anio", label: "Año", width: "80px", render: (v: any) => <span style={{ opacity: 0.7, fontWeight: 700 }}>{v}</span> },
+            { key: "empresa", label: "Empresa", render: (v: any) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{normalizarOperadora(v)}</span> },
+            { key: "departamento", label: "Departamento", render: (v: any) => normalizarDepartamento(v) },
+            { key: "municipio", label: "Municipio", render: (v: any) => normalizarMunicipio(v) },
+            { key: "etapa", label: "Etapa" },
+            { key: "compras_directas", label: "Inversión COP", align: "right", render: (v: any) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{formatCurrency(Number(v), true)}</span> },
           ]}
-          pageSize={20}
+          pageSize={100}
         />
       </div>
       

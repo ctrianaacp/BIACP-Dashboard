@@ -273,23 +273,23 @@ export default function RegaliasPage() {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle: Distribución por Entidad (Top 10)</span>
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{topEntidades.length} entidades totales</span>
+          <span className="panel-title">Detalle: Regalías (SGR)</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros detallados</span>
         </div>
         <DataTable
-          data={topEntidades.map(([entidad, val]) => {
-            const r = filtrados.find(f => f.entidad === entidad);
-            const ejec = val > 0 ? ((r?.compromisos ?? 0) / val) * 100 : 0;
-            return { entidad, aprop_def: val, compromisos: r?.compromisos ?? 0, pagos: r?.pagos ?? 0, ejec };
-          })}
+          data={filtrados}
           columns={[
-            { key: "entidad", label: "Entidad / Asignación", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
-            { key: "aprop_def", label: "Aprop. Definitiva", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(v)}</span> },
+            { key: "region", label: "Región", render: (v) => <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)" }}>{v}</span> },
+            { key: "departamento", label: "Departamento", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "entidad", label: "Entidad / Asignación" },
+            { key: "seccion", label: "Sección", render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
+            { key: "proyecto", label: "Concepto de Gasto", width: "200px", render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
+            { key: "fuente", label: "Fuente" },
+            { key: "apropiacion_definitiva", label: "Aprop. Definitiva", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(v)}</span> },
             { key: "compromisos", label: "Compromisos", align: "right", render: (v) => fmtCOP(v) },
             { key: "pagos", label: "Pagos", align: "right", render: (v) => fmtCOP(v) },
-            { key: "ejec", label: "% Ejec.", align: "right", render: (v) => <span className={`badge ${Number(v) >= 50 ? "success" : "warning"}`}>{Number(v).toFixed(1)}%</span> },
           ]}
-          pageSize={10}
+          pageSize={50}
         />
       </div>
     </div>
