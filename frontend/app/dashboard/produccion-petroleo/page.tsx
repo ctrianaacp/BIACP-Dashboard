@@ -3,6 +3,7 @@ import { useMsal } from "@azure/msal-react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
+import MapaPetroleoPage from "./MapaPetroleo";
 import { fetchExcelXLSX, SHAREPOINT_FILES } from "@/lib/graphClient";
 import { 
   Droplets, 
@@ -159,6 +160,7 @@ function KPICard({ label, value, unit, color, icon: Icon }: {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function ProduccionPetroleoPage() {
   const { instance, accounts } = useMsal();
+  const [activeTab, setActiveTab] = useState<'indicadores' | 'mapa'>('indicadores');
 
   // Filtros — uno por cada columna de la tabla
   const [filtroAnios, setFiltroAnios] = useState<string[]>([]);
@@ -409,7 +411,24 @@ export default function ProduccionPetroleoPage() {
   }
 
   return (
-    <div className="page-content">
+    <>
+      <div style={{ padding: '24px 24px 0', display: 'flex', gap: 8, borderBottom: '1px solid var(--color-border)', background: '#fff' }}>
+        <button 
+          onClick={() => setActiveTab('indicadores')}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'indicadores' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'indicadores' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+        >
+          Indicadores y Tablas
+        </button>
+        <button 
+          onClick={() => setActiveTab('mapa')}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'mapa' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'mapa' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+        >
+          Mapa Georreferenciado
+        </button>
+      </div>
+
+      {activeTab === 'indicadores' ? (
+        <div className="page-content">
       {/* ── Panel de Filtros (Drawer) ── */}
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, opacity: filtrosAbiertos ? 1 : 0, pointerEvents: filtrosAbiertos ? "auto" : "none", transition: "opacity 0.25s" }} onClick={() => setFiltrosAbiertos(false)} />
       
@@ -627,5 +646,9 @@ export default function ProduccionPetroleoPage() {
         />
       </div>
     </div>
+    ) : (
+      <MapaPetroleoPage />
+    )}
+    </>
   );
 }

@@ -33,9 +33,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Resumen General", icon: LayoutDashboard, section: "principal" },
   { href: "/dashboard/descubrimiento", label: "Descubrimiento Datos", icon: Search, section: "principal" },
   { href: "/dashboard/produccion-petroleo", label: "Producción Petróleo", icon: Droplets, section: "producción" },
-  { href: "/dashboard/mapa-petroleo", label: "Mapa Petróleo", icon: Map, section: "producción" },
   { href: "/dashboard/produccion-gas", label: "Producción Gas", icon: Wind, section: "producción" },
-  { href: "/dashboard/mapa-gas", label: "Mapa Gas", icon: Map, section: "producción" },
   { href: "/dashboard/compensaciones", label: "Compensaciones Amb.", icon: Leaf, section: "ambiental" },
   { href: "/dashboard/inversion-1pct", label: "Inversión 1%", icon: Waves, section: "ambiental" },
   { href: "/dashboard/bloqueos", label: "SIM Bloqueos", icon: AlertCircle, section: "conflictividad" },
@@ -47,7 +45,6 @@ const NAV_ITEMS = [
   { href: "/dashboard/empleo", label: "Empleo", icon: Users, section: "social" },
   { href: "/dashboard/inversion-social", label: "Inversión Social", icon: Handshake, section: "social" },
   { href: "/dashboard/consulta-previa", label: "Consulta Previa", icon: FileText, section: "social" },
-  { href: "/dashboard/mapa-prueba", label: "Mapa Georreferenciado", icon: Map, section: "social" },
 ];
 
 const SECTIONS = ["principal", "producción", "ambiental", "conflictividad", "regalías", "social"];
@@ -58,15 +55,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isAuthenticated = useIsAuthenticated();
   const router = useRouter();
   const pathname = usePathname();
-  const { accounts, instance } = useMsal();
+  const { accounts, instance, inProgress } = useMsal();
   const account = accounts[0];
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/");
-  }, [isAuthenticated, router]);
+    if (inProgress === "none" && !isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, inProgress, router]);
 
-  if (!isAuthenticated) return null;
+  if (inProgress !== "none" || !isAuthenticated) return null;
 
   const initials = account?.name
     ?.split(" ")

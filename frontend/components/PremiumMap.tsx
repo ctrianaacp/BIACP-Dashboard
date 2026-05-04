@@ -165,6 +165,7 @@ export default function PremiumMap({
           extruded: true,
           radius: 15000, // radio en metros
           elevationScale: 100,
+          gpuAggregation: false, // <-- IMPORTANTE: Fuerza CPU aggregation para tener object.points en el tooltip
           getPosition: d => d.position,
           getElevationWeight: d => d.weight,
           getColorWeight: d => d.weight,

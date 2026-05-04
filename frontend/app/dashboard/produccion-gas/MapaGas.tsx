@@ -278,32 +278,20 @@ export default function MapaGasPage() {
             let pointsInBin: any[] = [];
             
             if (object.points && object.points.length > 0) {
-              object.points.forEach((p: any) => {
-                const source = p.source || p;
-                const pos = source.position || source;
-                if (Array.isArray(pos)) {
-                  const match = allData.find(d => 
-                    Math.abs(d.position[0] - pos[0]) < 0.001 && 
-                    Math.abs(d.position[1] - pos[1]) < 0.001
-                  );
-                  pointsInBin.push(match || source);
-                } else {
-                  pointsInBin.push(source);
-                }
-              });
+              pointsInBin = object.points;
             } else if (object.pointIndices && object.pointIndices.length > 0) {
               pointsInBin = object.pointIndices.map((idx: number) => allData[idx]);
             } else {
-              const hexCenter = object.position;
+              const hexCenter = object.position || object.coordinate;
               if (hexCenter && Array.isArray(hexCenter)) {
                 pointsInBin = allData.filter(d => {
+                  if (!d.position) return false;
                   const dx = d.position[0] - hexCenter[0];
                   const dy = d.position[1] - hexCenter[1];
                   const dist = Math.sqrt(dx * dx + dy * dy);
-                  return dist < 0.15; // Aprox 15-16 km
+                  return dist < 0.15;
                 });
               }
-              // Fallback de seguridad
               if (pointsInBin.length === 0) {
                 pointsInBin = [object];
               }
@@ -312,41 +300,47 @@ export default function MapaGasPage() {
             const capitalize = (s: string) => s ? s.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : "";
             
             // Recolectar datos únicos
-            const munis = Array.from(new Set(pointsInBin.map(p => capitalize(p.label || "")))).filter(Boolean);
+            const munis = Array.from(new Set(pointsInBin.map(p => capitalize((p.source || p).label || "")))).filter(Boolean);
             
             const opsSet = new Set<string>();
-            pointsInBin.forEach(p => { if (p.subtitle) p.subtitle.split(", ").forEach((op: string) => opsSet.add(op)); });
+            pointsInBin.forEach(p => { 
+              const source = p.source || p;
+              if (source.subtitle) source.subtitle.split(", ").forEach((op: string) => opsSet.add(op)); 
+            });
             
             const camposSet = new Set<string>();
-            pointsInBin.forEach(p => { if (p.campos) p.campos.split(", ").forEach((c: string) => camposSet.add(c)); });
+            pointsInBin.forEach(p => { 
+              const source = p.source || p;
+              if (source.campos) source.campos.split(", ").forEach((c: string) => camposSet.add(c)); 
+            });
 
             // Extraer el MPCD ya calculado por el HexagonLayer
-            const totalMPCD = object.elevationValue ?? object.colorValue ?? pointsInBin.reduce((sum: number, p: any) => sum + (p.weight || 0), 0);
+            const totalMPCD = object.elevationValue ?? object.colorValue ?? pointsInBin.reduce((sum: number, p: any) => sum + ((p.source || p).weight || 0), 0);
 
             return {
               html: `
-                <div style="margin-bottom: 6px; padding-bottom: 6px; color: #38bdf8; font-size: 14px; white-space: normal; word-wrap: break-word; max-width: 250px;">
+                <div style="margin-bottom: 3px; padding-bottom: 3px; color: #38bdf8; font-size: 11px; white-space: normal; word-wrap: break-word; max-width: 200px;">
                   <b>Municipios:</b> <span style="color: #fff;">${munis.join(", ") || "No disponible"}</span>
                 </div>
-                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 6px; line-height: 1.4; white-space: normal; word-wrap: break-word; max-width: 250px;">
+                <div style="font-size: 10px; color: #cbd5e1; margin-bottom: 3px; line-height: 1.2; white-space: normal; word-wrap: break-word; max-width: 200px;">
                   <b>Operadora:</b> <span style="color: #fff;">${Array.from(opsSet).join(", ") || "No disponible"}</span>
                 </div>
-                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 10px; line-height: 1.4; white-space: normal; word-wrap: break-word; max-width: 250px;">
+                <div style="font-size: 10px; color: #cbd5e1; margin-bottom: 6px; line-height: 1.2; white-space: normal; word-wrap: break-word; max-width: 200px;">
                   <b>Campos:</b> <span style="color: #fff;">${Array.from(camposSet).join(", ") || "No disponible"}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.2);">
-                  <span style="font-weight:bold; font-size: 14px; color: #cbd5e1;">MPCD:</span> 
-                  <span style="font-weight:900; color: #4ade80; font-size: 16px;">${Math.round(totalMPCD).toLocaleString('es-CO')}</span>
+                <div style="display: flex; gap: 5px; align-items: center; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2);">
+                  <span style="font-weight:bold; font-size: 11px; color: #cbd5e1;">MPCD:</span> 
+                  <span style="font-weight:900; color: #4ade80; font-size: 12px;">${Math.round(totalMPCD).toLocaleString('es-CO')}</span>
                 </div>
               `,
               style: {
                 backgroundColor: 'rgba(15, 23, 42, 0.95)',
                 color: '#e2e8f0',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                boxShadow: '0 6px 15px -4px rgba(0, 0, 0, 0.5)',
                 border: '1px solid rgba(51, 65, 85, 0.8)',
-                fontSize: '13px',
+                fontSize: '10px',
                 fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
               }
             };

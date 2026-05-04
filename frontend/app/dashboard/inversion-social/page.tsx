@@ -3,6 +3,7 @@ import { useMsal } from "@azure/msal-react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
+import MapaSocialPage from "./MapaSocial";
 import { fetchExcelXLSX, SHAREPOINT_FILES } from "@/lib/graphClient";
 import { normalizarOperadora, normalizarDepartamento, normalizarMunicipio } from "@/lib/normalizacion";
 import { 
@@ -153,30 +154,30 @@ const ODS_MAP: Record<string, string> = {
   "alianzas para lograr los objetivos": "17"
 };
 
-function getOdsIcon(label: string) {
-  if (!label) return null;
-  const cleanLabel = label.toLowerCase()
-    .replace(/^objetivo \d+:\s*/i, "")
-    .replace(/^ods \d+\s*-\s*/i, "")
-    .replace(/^ods \d+:\s*/i, "")
-    .trim();
-  
-  // Try direct mapping
-  let num = ODS_MAP[cleanLabel];
-  
-  // If not found, try finding a number in the original string
-  if (!num) {
-    const match = label.match(/(\d+)/);
-    if (match) num = match[1];
-  }
+const STANDARD_ODS_NAMES: Record<number, string> = {
+  1: "Fin de la Pobreza",
+  2: "Hambre Cero",
+  3: "Salud y Bienestar",
+  4: "Educación de Calidad",
+  5: "Igualdad de Género",
+  6: "Agua y Saneamiento",
+  7: "Energía Asequible",
+  8: "Trabajo Decente",
+  9: "Industria e Innovación",
+  10: "Reducción Desigualdades",
+  11: "Ciudades Sostenibles",
+  12: "Producción Responsable",
+  13: "Acción por el Clima",
+  14: "Vida Submarina",
+  15: "Ecosistemas Terrestres",
+  16: "Paz e Instituciones",
+  17: "Alianzas para Objetivos"
+};
 
-  if (!num) return null;
-  
-  // Force 1-17 range check
-  const n = parseInt(num);
+function getOdsIcon(id: number | string) {
+  const n = parseInt(String(id));
   if (isNaN(n) || n < 1 || n > 17) return null;
-
-  return `https://open-sdg.github.io/sdg-translations/assets/img/goals/es/${n}.png`;
+  return `/images/ods/${n}.png`;
 }
 
 function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empresa: string[]; dpto: string[]; mpio: string[] }) {
@@ -187,7 +188,34 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
   
   if (isLoading || !data) return null;
 
-  const odsData = data.by_ods || [];
+  const rawOdsData = data.by_ods || [];
+  const groupedOds: Record<number, { id: number, ods: string, cantidad: number, valor: number }> = {};
+  
+  rawOdsData.forEach((d: any) => {
+    const label = d.ods || "";
+    const cleanLabel = label.toLowerCase()
+      .replace(/^objetivo \d+:\s*/i, "")
+      .replace(/^ods \d+\s*-\s*/i, "")
+      .replace(/^ods \d+:\s*/i, "")
+      .trim();
+    
+    let numStr = ODS_MAP[cleanLabel];
+    if (!numStr) {
+      const match = label.match(/(\d+)/);
+      if (match) numStr = match[1];
+    }
+    
+    const num = parseInt(numStr);
+    if (!isNaN(num) && num >= 1 && num <= 17) {
+      if (!groupedOds[num]) {
+        groupedOds[num] = { id: num, ods: STANDARD_ODS_NAMES[num], cantidad: 0, valor: 0 };
+      }
+      groupedOds[num].cantidad += Number(d.cantidad || 0);
+      groupedOds[num].valor += Number(d.valor || 0);
+    }
+  });
+
+  const odsData = Object.values(groupedOds).sort((a, b) => b.cantidad - a.cantidad);
 
   return (
     <div className="panel" id="panel-social-ods" style={{ marginBottom: 32, background: 'linear-gradient(to right, #ffffff, #f8fafc)' }}>
@@ -198,11 +226,11 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
         <ExportButton targetId="panel-social-ods" fileName="Contribucion_ODS" />
       </div>
       <div className="panel-body">
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 32, alignItems: 'flex-start' }}>
           <div>
             <Chart 
               type="bar"
-              height={380}
+              height={Math.max(450, odsData.length * 35)}
               series={[{
                 name: "Proyectos",
                 data: odsData.map((d: any) => ({
@@ -217,7 +245,7 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
                     horizontal: true,
                     distributed: true,
                     borderRadius: 4,
-                    barHeight: '85%',
+                    barHeight: '75%',
                     dataLabels: {
                       position: 'top',
                     },
@@ -237,7 +265,7 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
                     const pct = total > 0 ? (val / total * 100).toFixed(1) : 0;
                     return `${val} (${pct}%)`;
                   },
-                  offsetX: 0,
+                  offsetX: 5,
                 },
                 xaxis: {
                   categories: odsData.map((d: any) => d.ods),
@@ -246,8 +274,8 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
                 yaxis: {
                   labels: {
                     show: true,
-                    maxWidth: 160,
-                    style: { fontSize: '10px', fontWeight: 600 }
+                    maxWidth: 180,
+                    style: { fontSize: '11px', fontWeight: 700, colors: '#475569' }
                   }
                 },
                 legend: { show: false },
@@ -256,9 +284,9 @@ function ODSImpactSection({ anio, empresa, dpto, mpio }: { anio: string[]; empre
             />
           </div>
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
               {odsData.slice(0, 6).map((d: any, i: number) => {
-                const iconUrl = getOdsIcon(d.ods);
+                const iconUrl = getOdsIcon(d.id);
                 return (
                   <div key={i} style={{ padding: 16, background: '#fff', borderRadius: 12, border: '1px solid var(--color-border)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', gap: 12 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.1)', background: 'var(--color-bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -309,6 +337,7 @@ function KPICard({ label, value, unit, color, icon: Icon }: { label: string; val
 
 export default function InversionSocialPage() {
   const { instance, accounts } = useMsal();
+  const [activeTab, setActiveTab] = useState<'indicadores' | 'mapa'>('indicadores');
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [filtroOp, setFiltroOp] = useState<string[]>([]);
   const [filtroDpto, setFiltroDpto] = useState<string[]>([]);
@@ -423,7 +452,24 @@ export default function InversionSocialPage() {
   );
 
   return (
-    <div className="page-content">
+    <>
+      <div style={{ padding: '24px 24px 0', display: 'flex', gap: 8, borderBottom: '1px solid var(--color-border)', background: '#fff' }}>
+        <button 
+          onClick={() => setActiveTab('indicadores')}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'indicadores' ? 'var(--color-info)' : 'var(--color-text-muted)', borderBottom: activeTab === 'indicadores' ? '3px solid var(--color-info)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+        >
+          Indicadores y Tablas
+        </button>
+        <button 
+          onClick={() => setActiveTab('mapa')}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'mapa' ? 'var(--color-info)' : 'var(--color-text-muted)', borderBottom: activeTab === 'mapa' ? '3px solid var(--color-info)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+        >
+          Mapa Georreferenciado
+        </button>
+      </div>
+
+      {activeTab === 'indicadores' ? (
+        <div className="page-content">
       {/* ── Panel de Filtros (Drawer) ── */}
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, opacity: filtrosAbiertos ? 1 : 0, pointerEvents: filtrosAbiertos ? "auto" : "none", transition: "opacity 0.25s" }} onClick={() => setFiltrosAbiertos(false)} />
       
@@ -607,5 +653,9 @@ export default function InversionSocialPage() {
         />
       </div>
     </div>
+    ) : (
+      <MapaSocialPage />
+    )}
+    </>
   );
 }
