@@ -116,6 +116,82 @@ async function cargarDatos(
     .filter(r => r.anio || r.departamento);
 }
 
+// ─── Fetchers Adicionales ──────────────────────────────────────────────────────
+function excelDateToISO(serial: unknown): string {
+  if (serial === null || serial === undefined || String(serial).trim() === "") return "";
+  if (serial instanceof Date) {
+    if (isNaN(serial.getTime())) return "";
+    const y = serial.getUTCFullYear();
+    const m = String(serial.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(serial.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof serial === "string") {
+    const s = serial.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    if (s.includes("/")) {
+      const pts = s.split("/");
+      if (pts.length === 3) {
+        const [d, m, a] = pts;
+        const year = a.length === 2 ? `20${a}` : a;
+        if (year.length === 4) return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      }
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().substring(0, 10);
+    return "";
+  }
+  const num = Number(serial);
+  if (!isNaN(num) && num > 30000 && num < 80000) {
+    const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+    return isNaN(date.getTime()) ? "" : date.toISOString().substring(0, 10);
+  }
+  return "";
+}
+
+function calcularPromedioMensual(registros: any[], campoValor: string): number {
+  if (registros.length === 0) return 0;
+  const porMes: Record<string, number> = {};
+  for (const r of registros) {
+    const key = r.Fecha?.substring(0, 7);
+    if (!key || key.length < 7) continue;
+    porMes[key] = (porMes[key] ?? 0) + r[campoValor];
+  }
+  const valores = Object.values(porMes);
+  if (valores.length === 0) return 0;
+  return valores.reduce((s, v) => s + v, 0) / valores.length;
+}
+
+async function cargarPetroleo(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.petroleoConsolidado.site,
+    SHAREPOINT_FILES.petroleoConsolidado.path,
+    SHAREPOINT_FILES.petroleoConsolidado.table,
+    instance, account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
+async function cargarGas(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.gasConsolidado.site,
+    SHAREPOINT_FILES.gasConsolidado.path,
+    SHAREPOINT_FILES.gasConsolidado.table,
+    instance, account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KPICard({ label, value, delta, color, icon: Icon, sub }: {
   label: string; value: string; delta?: string; color: string; icon: any; sub?: string;
@@ -205,6 +281,63 @@ function PanelIndicador({ tipo, tab }: { tipo: TabKey; tab: typeof TABS[0] }) {
     return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 10);
   }, [filtrados]);
 
+  const { data: petroleo } = useQuery({
+    queryKey: ["produccion-petroleo-basico-seguridad"],
+    queryFn: () => cargarPetroleo(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: gas } = useQuery({
+    queryKey: ["produccion-gas-basico-seguridad"],
+    queryFn: () => cargarGas(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const chartSeriesCruce = useMemo(() => {
+    if (!petroleo || !gas || filtrados.length === 0) return null;
+
+    const pPorAnio: Record<string, any[]> = {};
+    petroleo.forEach((r: any) => {
+      const y = r.Fecha?.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!pPorAnio[y]) pPorAnio[y] = [];
+      pPorAnio[y].push(r);
+    });
+    
+    const gPorAnio: Record<string, any[]> = {};
+    gas.forEach((r: any) => {
+      const y = r.Fecha?.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!gPorAnio[y]) gPorAnio[y] = [];
+      gPorAnio[y].push(r);
+    });
+
+    const eventosPorAnio: Record<string, number> = {};
+    filtrados.forEach(r => { 
+      if (r.anio) eventosPorAnio[r.anio] = (eventosPorAnio[r.anio] ?? 0) + r.cantidad; 
+    });
+
+    const allYears = new Set<string>();
+    Object.keys(pPorAnio).forEach(y => allYears.add(y));
+    Object.keys(gPorAnio).forEach(y => allYears.add(y));
+    Object.keys(eventosPorAnio).forEach(y => allYears.add(y));
+
+    const yearsSorted = Array.from(allYears).sort((a, b) => a.localeCompare(b)).filter(y => y !== 'null');
+
+    const dataPetroleo = yearsSorted.map(y => pPorAnio[y] ? calcularPromedioMensual(pPorAnio[y], 'Produccion') : 0);
+    const dataGas = yearsSorted.map(y => gPorAnio[y] ? calcularPromedioMensual(gPorAnio[y], 'Produccion') : 0);
+    const dataEventos = yearsSorted.map(y => eventosPorAnio[y] || 0);
+
+    return {
+      categories: yearsSorted,
+      petroleo: dataPetroleo,
+      gas: dataGas,
+      eventos: dataEventos
+    };
+  }, [petroleo, gas, filtrados]);
+
   const varYoY = useMemo(() => {
     if (porAnio.length < 2) return null;
     const [, prev] = porAnio[porAnio.length - 2];
@@ -284,28 +417,59 @@ function PanelIndicador({ tipo, tab }: { tipo: TabKey; tab: typeof TABS[0] }) {
       </div>
 
       <div className="charts-grid">
-        <div className="panel" id={`panel-seguridad-hist-${tipo}`}>
+        <div className="panel" id={`panel-seguridad-hist-${tipo}`} style={{ gridColumn: '1 / -1' }}>
           <div className="panel-header">
-            <span className="panel-title">Evolución Histórica</span>
+            <span className="panel-title">Evolución de Eventos vs Producción</span>
             <ExportButton targetId={`panel-seguridad-hist-${tipo}`} fileName={`Evolucion_Historica_${tipo}`} />
           </div>
           <div className="panel-body">
-            {typeof window !== "undefined" && porAnio.length > 0 && (
-              <Chart type="area" height={380}
-                series={[{ name: tab.label, data: porAnio.map(([, v]) => v) }]}
+            {typeof window !== "undefined" && chartSeriesCruce ? (
+              <Chart
+                type="line"
+                height={450}
+                series={[
+                  { name: tab.label, type: "column", data: chartSeriesCruce.eventos },
+                  { name: "Producción Petróleo (BPDC)", type: "line", data: chartSeriesCruce.petroleo.map(v => Math.round(v)) },
+                  { name: "Producción Gas (MPCD)", type: "line", data: chartSeriesCruce.gas.map(v => Math.round(v)) },
+                ]}
                 options={{
                   ...chartBase,
-                  xaxis: { 
-                    categories: porAnio.map(([y]) => y), 
-                    tickAmount: 12,
-                    labels: { style: { colors: "var(--color-text-muted)" } } 
+                  chart: { ...chartBase.chart, stacked: true },
+                  stroke: { width: [0, 4, 4], curve: 'smooth' },
+                  xaxis: { categories: chartSeriesCruce.categories },
+                  colors: [tab.color, "#D44D03", "#003745"],
+                  dataLabels: { enabled: false },
+                  yaxis: [
+                    {
+                      title: { text: "Casos", style: { color: tab.color, fontWeight: 700 } },
+                      labels: { style: { colors: tab.color }, formatter: (v: number) => formatNum(v) },
+                    },
+                    {
+                      opposite: true,
+                      title: { text: "BPDC / MPCD", style: { color: "#D44D03", fontWeight: 700 } },
+                      labels: { style: { colors: "#D44D03" }, formatter: (v: number) => formatAbbr(v) },
+                    },
+                    { show: false, opposite: true, seriesName: "Producción Petróleo (BPDC)" }
+                  ],
+                  tooltip: {
+                    shared: true,
+                    intersect: false,
+                    y: {
+                      formatter: function (y, { seriesIndex }) {
+                        if (typeof y !== "undefined") {
+                          if (seriesIndex === 0) return formatNum(y) + " casos";
+                          if (seriesIndex === 1) return formatAbbr(y) + " BPDC";
+                          if (seriesIndex === 2) return formatAbbr(y) + " MPCD";
+                        }
+                        return y;
+                      }
+                    }
                   },
-                  colors: [tab.color],
-                  fill: { type: "linear", opacity: 0.1 },
-                  stroke: { curve: "smooth", width: 3 },
-                  dataLabels: { enabled: false }
+                  legend: { position: 'top', horizontalAlign: 'center', itemMargin: { horizontal: 15, vertical: 5 } }
                 }}
               />
+            ) : (
+              <div style={{height:450, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-text-muted)'}}>Cargando cruce de datos y producción...</div>
             )}
           </div>
         </div>

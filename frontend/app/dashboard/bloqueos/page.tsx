@@ -24,7 +24,7 @@ import {
   Building2 
 } from "lucide-react";
 import Loading from "@/components/Loading";
-import { formatNum } from "@/lib/formatters";
+import { formatNum, formatAbbr } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
 import DataTable from "@/components/DataTable";
@@ -71,6 +71,14 @@ function getVal(r: Record<string, unknown>, keys: string[]): any {
   const firstKey = keys[0].toUpperCase();
   if (firstKey === "DEPARTAMENTO") {
     const found = rKeys.find(rk => rk.trim().toUpperCase().includes("DPTO") || rk.trim().toUpperCase().includes("DEPARTA"));
+    if (found) return r[found];
+  }
+  
+  if (firstKey === "OPERADORA") {
+    const found = rKeys.find(rk => {
+      const norm = rk.trim().toUpperCase();
+      return norm.includes("OPERADOR") || norm.includes("EMPRESA") || norm.includes("COMPAÑ") || norm.includes("COMPAN") || norm.includes("CIA");
+    });
     if (found) return r[found];
   }
   
@@ -124,7 +132,51 @@ const MESES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
-// ─── Loader ───────────────────────────────────────────────────────────────────
+// ─── Data Fetchers (Gas y Petroleo) ───────────────────────────────────────────
+function calcularPromedioMensual(registros: any[], campoValor: string): number {
+  if (registros.length === 0) return 0;
+  const porMes: Record<string, number> = {};
+  for (const r of registros) {
+    const key = r.Fecha?.substring(0, 7);
+    if (!key || key.length < 7) continue;
+    porMes[key] = (porMes[key] ?? 0) + r[campoValor];
+  }
+  const valores = Object.values(porMes);
+  if (valores.length === 0) return 0;
+  return valores.reduce((s, v) => s + v, 0) / valores.length;
+}
+
+async function cargarPetroleo(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.petroleoConsolidado.site,
+    SHAREPOINT_FILES.petroleoConsolidado.path,
+    SHAREPOINT_FILES.petroleoConsolidado.table,
+    instance, account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
+async function cargarGas(instance: any, accounts: any[]) {
+  const account = accounts[0];
+  if (!account) return [];
+  const rows = await fetchExcelXLSX(
+    SHAREPOINT_FILES.gasConsolidado.site,
+    SHAREPOINT_FILES.gasConsolidado.path,
+    SHAREPOINT_FILES.gasConsolidado.table,
+    instance, account
+  );
+  return rows.map((r: any) => ({
+    Fecha: excelDateToISO(r["Fecha"]),
+    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+  }));
+}
+
+// ─── Loader Bloqueos ──────────────────────────────────────────────────────────
 async function cargarBloqueos(
   instance: ReturnType<typeof useMsal>["instance"],
   accounts: ReturnType<typeof useMsal>["accounts"]
@@ -251,6 +303,74 @@ export default function BloqueosPage() {
     return Object.entries(acc).sort(([a], [b]) => a.localeCompare(b));
   }, [filtrados]);
 
+  const { data: petroleo } = useQuery({
+    queryKey: ["produccion-petroleo-basico-bloq"],
+    queryFn: () => cargarPetroleo(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: gas } = useQuery({
+    queryKey: ["produccion-gas-basico-bloq"],
+    queryFn: () => cargarGas(instance, accounts),
+    enabled: accounts.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const chartSeriesCruce = useMemo(() => {
+    if (!petroleo || !gas || filtrados.length === 0) return null;
+
+    const pPorAnio: Record<string, any[]> = {};
+    petroleo.forEach((r: any) => {
+      const y = r.Fecha?.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!pPorAnio[y]) pPorAnio[y] = [];
+      pPorAnio[y].push(r);
+    });
+    
+    const gPorAnio: Record<string, any[]> = {};
+    gas.forEach((r: any) => {
+      const y = r.Fecha?.substring(0, 4);
+      if (!y || y.length < 4) return;
+      if (!gPorAnio[y]) gPorAnio[y] = [];
+      gPorAnio[y].push(r);
+    });
+
+    const alarmasPorAnio: Record<string, number> = {};
+    const bloqueosPorAnio: Record<string, number> = {};
+    
+    filtrados.forEach((r: any) => {
+      const y = r.Anio;
+      if (!y) return;
+      if (r.TipoEvento.includes("Alarma")) {
+        alarmasPorAnio[y] = (alarmasPorAnio[y] ?? 0) + 1;
+      } else if (r.TipoEvento.includes("Bloqueo")) {
+        bloqueosPorAnio[y] = (bloqueosPorAnio[y] ?? 0) + 1;
+      }
+    });
+
+    const allYears = new Set<string>();
+    Object.keys(pPorAnio).forEach(y => allYears.add(y));
+    Object.keys(gPorAnio).forEach(y => allYears.add(y));
+    Object.keys(alarmasPorAnio).forEach(y => allYears.add(y));
+    Object.keys(bloqueosPorAnio).forEach(y => allYears.add(y));
+
+    const yearsSorted = Array.from(allYears).sort((a, b) => a.localeCompare(b)).filter(y => y !== 'null');
+
+    const dataPetroleo = yearsSorted.map(y => pPorAnio[y] ? calcularPromedioMensual(pPorAnio[y], 'Produccion') : 0);
+    const dataGas = yearsSorted.map(y => gPorAnio[y] ? calcularPromedioMensual(gPorAnio[y], 'Produccion') : 0);
+    const dataAlarmas = yearsSorted.map(y => alarmasPorAnio[y] || 0);
+    const dataBloqueos = yearsSorted.map(y => bloqueosPorAnio[y] || 0);
+
+    return {
+      categories: yearsSorted,
+      petroleo: dataPetroleo,
+      gas: dataGas,
+      alarmas: dataAlarmas,
+      bloqueos: dataBloqueos
+    };
+  }, [petroleo, gas, filtrados]);
+
   const porDpto = useMemo(() => {
     const acc: Record<string, number> = {};
     filtrados.forEach(r => { acc[r.Departamento] = (acc[r.Departamento] ?? 0) + 1; });
@@ -326,37 +446,62 @@ export default function BloqueosPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px', marginBottom: '24px' }}>
-        <div className="panel" id="panel-bloq-hist">
+        <div className="panel" id="panel-bloq-hist" style={{ gridColumn: '1 / -1' }}>
           <div className="panel-header">
-            <span className="panel-title">Evolución Histórica de Eventos</span>
-            <ExportButton targetId="panel-bloq-hist" fileName="Historico_Eventos_Bloqueos" />
+            <span className="panel-title">Evolución de Eventos vs Producción</span>
+            <ExportButton targetId="panel-bloq-hist" fileName="Cruce_Bloqueos_Produccion" />
           </div>
           <div className="panel-body">
-            {typeof window !== "undefined" && porAnio.length > 0 && (
-              <Chart type="bar" height={380} 
-                series={[{ name: "Eventos", data: porAnio.map(([, v]) => v) }]} 
-                options={{ 
-                  ...chartBase, 
-                  xaxis: { 
-                    categories: porAnio.map(([y]) => y), 
-                    labels: { style: { colors: 'var(--color-text-muted)', fontSize: '10px' } } 
-                  }, 
-                  colors: ["#C62828"],
-                  plotOptions: { bar: { borderRadius: 4, columnWidth: "80%" } },
-                  dataLabels: { 
-                    enabled: true, 
-                    formatter: (v: number) => formatNum(v),
-                    style: { fontSize: "11px", fontWeight: 700 } 
-                  },
-                  responsive: [{
-                    breakpoint: 640,
-                    options: {
-                      chart: { height: 260 },
-                      xaxis: { labels: { rotate: -45, style: { fontSize: '9px' } } }
+            {typeof window !== "undefined" && chartSeriesCruce ? (
+              <Chart
+                type="line"
+                height={450}
+                series={[
+                  { name: "Alarmas", type: "column", data: chartSeriesCruce.alarmas },
+                  { name: "Bloqueos", type: "column", data: chartSeriesCruce.bloqueos },
+                  { name: "Producción Petróleo (BPDC)", type: "line", data: chartSeriesCruce.petroleo.map(v => Math.round(v)) },
+                  { name: "Producción Gas (MPCD)", type: "line", data: chartSeriesCruce.gas.map(v => Math.round(v)) },
+                ]}
+                options={{
+                  ...chartBase,
+                  chart: { ...chartBase.chart, stacked: true },
+                  stroke: { width: [0, 0, 4, 4], curve: 'smooth' },
+                  xaxis: { categories: chartSeriesCruce.categories },
+                  colors: ["#F59E0B", "#DC2626", "#D44D03", "#003745"],
+                  dataLabels: { enabled: false },
+                  yaxis: [
+                    {
+                      title: { text: "Eventos", style: { color: "#DC2626", fontWeight: 700 } },
+                      labels: { style: { colors: "#DC2626" }, formatter: (v: number) => formatNum(v) },
+                    },
+                    { show: false, seriesName: "Alarmas" },
+                    {
+                      opposite: true,
+                      title: { text: "BPDC / MPCD", style: { color: "#D44D03", fontWeight: 700 } },
+                      labels: { style: { colors: "#D44D03" }, formatter: (v: number) => formatAbbr(v) },
+                    },
+                    { show: false, opposite: true, seriesName: "Producción Petróleo (BPDC)" }
+                  ],
+                  tooltip: {
+                    shared: true,
+                    intersect: false,
+                    y: {
+                      formatter: function (y, { seriesIndex }) {
+                        if (typeof y !== "undefined") {
+                          if (seriesIndex === 0) return formatNum(y) + " alarmas";
+                          if (seriesIndex === 1) return formatNum(y) + " bloqueos";
+                          if (seriesIndex === 2) return formatAbbr(y) + " BPDC";
+                          if (seriesIndex === 3) return formatAbbr(y) + " MPCD";
+                        }
+                        return y;
+                      }
                     }
-                  }]
-                }} 
+                  },
+                  legend: { position: 'top', horizontalAlign: 'center', itemMargin: { horizontal: 15, vertical: 5 } }
+                }}
               />
+            ) : (
+              <div style={{height:450, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-text-muted)'}}>Cargando cruce de datos y producción...</div>
             )}
           </div>
         </div>
