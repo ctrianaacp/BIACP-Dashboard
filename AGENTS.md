@@ -39,10 +39,25 @@ Flujo oficial para compilar y lanzar el Dashboard en el VPS.
 
 Para desplegar el frontend de forma consistente con MSAL y conectarse a la Base de Datos de Producción:
 
-1. **Túnel SSH Obligatorio:** Como política de seguridad, la base de datos PostgreSQL de producción está aislada en Coolify (`127.0.0.1`). Debes abrir un Túnel SSH mapeando a la base de datos correcta (`ssh -L 5433:127.0.0.1:5432 root@74.208.130.203 -N`) y asegurar que tu `DATABASE_URL` en `.env.local` apunte a `localhost:5433`. *(Nota: la BD en el VPS corre internamente en el 5432).*
+1. **Túnel SSH Obligatorio:** Como política de seguridad, la base de datos PostgreSQL de producción está aislada en Coolify (`127.0.0.1`). Abrir el túnel en una terminal aparte **antes** de levantar el servidor:
+
+   ```powershell
+   ssh -L 5433:127.0.0.1:5432 root@74.208.130.203 -N
+   ```
+
+   > ⚠️ **Notas verificadas (2026-05-06):**
+   > - Usar **`root`** como usuario SSH, **NO** `coolify` (ese da timeout).
+   > - No es necesario especificar `-i ~/.ssh/id_rsa`; SSH usa la clave del agente por defecto.
+   > - El túnel corre en background sin output: eso es **normal** con `-N`.
+   > - La `DATABASE_URL` en `.env.local` ya apunta a `localhost:5433`. ✓
+
 2. Asegurar que `NEXT_PUBLIC_REDIRECT_URI=http://localhost:3007` en `.env.local`.
-3. Usar el workflow `deploy-3007.md` (o el script `npm run tunnel` / `npm run dev`).
-4. Ejecutar `npm run dev -- -p 3007` (se recomienda usar los scripts en `package.json` para levantar el túnel y el server automáticamente).
+3. Ejecutar el servidor en otra terminal:
+
+   ```powershell
+   cd frontend
+   npm run dev -- -p 3007
+   ```
 
 ### 📊 Integración de Nuevas Fuentes
 

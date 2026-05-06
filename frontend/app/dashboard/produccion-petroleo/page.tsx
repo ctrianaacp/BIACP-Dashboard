@@ -852,7 +852,7 @@ export default function ProduccionPetroleoPage() {
           </div>
           <div className="panel-body">
             {typeof window !== "undefined" && operadoraContratos.categories.length > 0 ? (
-              <Chart type="bar" height={450}
+              <Chart type="bar" height={650}
                 series={operadoraContratos.series}
                 options={{
                   ...chartOpts.baseTheme,
@@ -865,7 +865,7 @@ export default function ProduccionPetroleoPage() {
                       dataLabels: {
                         total: {
                           enabled: true,
-                          style: { color: 'var(--color-text-primary)', fontSize: '11px', fontWeight: 900 },
+                          style: { color: 'var(--color-text-primary)', fontSize: '9px', fontWeight: 900 },
                           formatter: (v: string | number) => formatAbbr(Number(v))
                         }
                       }
@@ -874,7 +874,7 @@ export default function ProduccionPetroleoPage() {
                   xaxis: { 
                     categories: operadoraContratos.categories, 
                     labels: { 
-                      style: { colors: "var(--color-text-muted)", fontSize: "10px" }, 
+                      style: { colors: "var(--color-text-muted)", fontSize: "8px" }, 
                       rotate: -45,
                       hideOverlappingLabels: false
                     } 
@@ -886,10 +886,10 @@ export default function ProduccionPetroleoPage() {
                   dataLabels: { 
                     enabled: true,
                     formatter: (val: number) => val > 0 ? formatAbbr(val) : '',
-                    style: { fontSize: "10px", fontWeight: 800, colors: ["#ffffff"] }
+                    style: { fontSize: "8px", fontWeight: 800, colors: ["#ffffff"] }
                   },
                   stroke: { width: 0 },
-                  legend: { position: 'right', offsetY: 40, labels: { colors: 'var(--color-text-primary)' } },
+                  legend: { position: 'right', offsetY: 40, fontSize: '10px', labels: { colors: 'var(--color-text-primary)' } },
                   fill: { opacity: 1 },
                   tooltip: {
                     theme: "light",
