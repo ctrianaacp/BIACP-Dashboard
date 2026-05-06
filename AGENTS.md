@@ -80,7 +80,12 @@ El proyecto cuenta con un asistente de IA integrado llamado **EnergyBot**, dise�
 
 1. **Frontend (Widget)**: El componente `/components/EnergyBotWidget.tsx` maneja la interfaz flotante (burbuja). Utiliza estado de React puro (sin hooks inestables) para controlar la entrada, el historial de mensajes y la lectura de *streaming* mediante `ReadableStream` y `TextDecoder`.
 2. **Contexto Activo**: Mediante `lib/chatStore.ts` (estado global con `useSyncExternalStore`), cualquier módulo del dashboard puede "inyectar" la data actual que está viendo el usuario para que el bot tenga contexto (ej. filtros activos).
-3. **Backend y RAG Ligero**: La ruta API `/app/api/chat/route.ts` recibe la petición. *Antes* de enviarla a OpenAI, ejecuta un motor de agregación (PostgreSQL) para armar un resumen de los Top 50 registros de las tablas de Empleo, Bienes/Servicios e Inversión Social. Este resumen se inyecta en el **System Prompt**, permitiéndole a GPT-4o-mini responder con cifras **exactas y reales** extraídas directamente de la base de datos de producción.
+3. **Backend y RAG Ligero**: La ruta API `/app/api/chat/route.ts` recibe la petición. *Antes* de enviarla a OpenAI, ejecuta un motor de agregación (PostgreSQL) para armar un resumen. Este resumen se inyecta en el **System Prompt**, permitiéndole a GPT-4o-mini responder con cifras **exactas y reales** extraídas directamente de la base de datos de producción.
+
+**Notas Técnicas del Bot:**
+- **Context Length Exceeded:** Al inyectar data en el System Prompt, debes usar `LIMIT 50` o similares en consultas SQL masivas (como `hecho_bloqueos`). De lo contrario, colapsarás la ventana de contexto de 128k del modelo.
+- **Tipos de Datos SQL:** En consultas agregadas, siempre extrae las fechas usando el estándar de PostgreSQL para formato Date: `EXTRACT(YEAR FROM fecha)`. No uses `SUBSTRING` en campos de fechas migrados.
+- **Tools / Vercel AI SDK:** El SDK estricto de OpenAI rechaza objetos de parámetros JSON inconsistentes generados por versiones desactualizadas de `zod`. Hasta que no haya paridad en el SDK local, mantén herramientas (como `consultar_municipio`) en observación.
 
 ---
 
