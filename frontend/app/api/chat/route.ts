@@ -224,6 +224,7 @@ Reglas de respuesta:
             municipio: z.string().describe('El nombre del municipio a consultar (ej: Puerto Gaitán, Barrancabermeja, Acacías)'),
             anio: z.string().optional().describe('El año a consultar (ej: 2024). Si no se especifica, traerá el resumen de todos los años.'),
           }),
+          // @ts-ignore - Evitar error de tipos en versiones desalineadas del Vercel AI SDK
           execute: async ({ municipio, anio }) => {
             try {
               const params = anio ? [`%${municipio}%`, anio] : [`%${municipio}%`];
