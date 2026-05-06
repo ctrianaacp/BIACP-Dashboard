@@ -216,7 +216,7 @@ Reglas de respuesta:
       system: systemPrompt,
       messages: formattedMessages,
       temperature: 0.2,
-      maxSteps: 3,
+      // maxSteps: 3,
       tools: {
         consultar_municipio: tool({
           description: 'Consulta datos específicos (Producción Petróleo, Producción Gas, Empleo, Bienes y Servicios, Inversión Social, Bloqueos) para un MUNICIPIO específico. Úsalo SIEMPRE que el usuario mencione una ciudad o municipio.',
