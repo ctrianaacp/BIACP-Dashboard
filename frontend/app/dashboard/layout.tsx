@@ -1,9 +1,9 @@
 "use client";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import EnergyBotWidget from "@/components/EnergyBotWidget";
 import { 
   LayoutDashboard, 
   Droplets, 
@@ -26,11 +26,13 @@ import {
   LogOut,
   Menu,
   X,
-  Map
+  Map,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Resumen General", icon: LayoutDashboard, section: "principal" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "principal" },
   { href: "/dashboard/descubrimiento", label: "Descubrimiento Datos", icon: Search, section: "principal" },
   { href: "/dashboard/produccion-petroleo", label: "Producción Petróleo", icon: Droplets, section: "producción" },
   { href: "/dashboard/produccion-gas", label: "Producción Gas", icon: Wind, section: "producción" },
@@ -58,6 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { accounts, instance, inProgress } = useMsal();
   const account = accounts[0];
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
   useEffect(() => {
     if (inProgress === "none" && !isAuthenticated) {
@@ -80,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentPage = NAV_ITEMS.find((n) => n.href === pathname);
 
   return (
-    <div className={`app-layout ${sidebarAbierto ? "sidebar-open" : ""}`}>
+    <div className={`app-layout ${sidebarAbierto ? "sidebar-open" : ""} ${desktopCollapsed ? "desktop-collapsed" : ""}`}>
       {/* Overlay para cerrar sidebar en móvil */}
       {sidebarAbierto && (
         <div 
@@ -161,6 +164,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
 
           <div className="topbar-left">
+            <button 
+              className="desktop-toggle" 
+              onClick={() => setDesktopCollapsed(!desktopCollapsed)}
+              title={desktopCollapsed ? "Expandir menú" : "Ocultar menú"}
+            >
+              {desktopCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+
             <span className="topbar-title">
               {currentPage && <currentPage.icon size={22} strokeWidth={2.5} />}
               <span className="title-text">{currentPage?.label ?? "Dashboard"}</span>
@@ -196,6 +207,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <main style={{ minHeight: 'calc(100vh - 70px)' }}>{children}</main>
       </div>
+
+      {/* Widget Inteligente Global */}
+      <EnergyBotWidget />
     </div>
   );
 }

@@ -41,6 +41,7 @@ interface FuenteDatos {
   graphUrl?: string;
   descripcion: string;
   usaXLSX?: boolean;
+  destinoDB?: string;
 }
 
 const FUENTES: FuenteDatos[] = [
@@ -107,6 +108,7 @@ const FUENTES: FuenteDatos[] = [
     graphUrl: `https://graph.microsoft.com/v1.0/sites/${graphConfig.sites.equipoACP}/drive/root:/${SHAREPOINT_FILES.bloqueosSIM.path}:/content`,
     descripcion: "Reporte vigente de alarmas y bloqueos upstream del Sistema de Información de Manifestaciones (SIM).",
     usaXLSX: true,
+    destinoDB: "hecho_bloqueos",
   },
   {
     id: "bloqueos-historico",
@@ -120,6 +122,7 @@ const FUENTES: FuenteDatos[] = [
     graphUrl: `https://graph.microsoft.com/v1.0/sites/${graphConfig.sites.equipoACP}/drive/root:/${SHAREPOINT_FILES.bloqueosHistorico.path}:/content`,
     descripcion: "Histórico completo de alarmas y bloqueos upstream desde 2010 hasta 2024.",
     usaXLSX: true,
+    destinoDB: "hecho_bloqueos",
   },
   {
     id: "sgr-aprobados",
@@ -151,6 +154,7 @@ const FUENTES: FuenteDatos[] = [
     graphUrl: `https://graph.microsoft.com/v1.0/sites/${graphConfig.sites.datosBIACP}/drive/root:/${SHAREPOINT_FILES.cifrasSociales.path}:/content`,
     descripcion: "Registros de empleo nacional y local por operadora, sexo y origen de contratación.",
     usaXLSX: true,
+    destinoDB: "hecho_empleo",
   },
   {
     id: "cifras-sociales-bys",
@@ -164,6 +168,7 @@ const FUENTES: FuenteDatos[] = [
     graphUrl: `https://graph.microsoft.com/v1.0/sites/${graphConfig.sites.datosBIACP}/drive/root:/${SHAREPOINT_FILES.cifrasSociales.path}:/content`,
     descripcion: "Consolidado de contratación local y no local de bienes y servicios (compras directas e indirectas).",
     usaXLSX: true,
+    destinoDB: "hecho_bienes_servicios",
   },
   {
     id: "cifras-sociales-inversion",
@@ -177,6 +182,7 @@ const FUENTES: FuenteDatos[] = [
     graphUrl: `https://graph.microsoft.com/v1.0/sites/${graphConfig.sites.datosBIACP}/drive/root:/${SHAREPOINT_FILES.cifrasSociales.path}:/content`,
     descripcion: "Proyectos de inversión social obligatoria y voluntaria por línea de inversión y ODS.",
     usaXLSX: true,
+    destinoDB: "hecho_inversion_social",
   },
 ];
 
@@ -279,10 +285,9 @@ export default function AdminPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: "14px", marginBottom: "24px" }}>
         {[
           { icon: <FolderOpen size={16} />, label: "Fuentes totales", valor: FUENTES.length, color: "#C4501A" },
-          { icon: <BarChart3 size={16} />, label: "SharePoint XLSX", valor: FUENTES.filter(f => f.tipo === "sharepoint-xlsx").length, color: "#0F6CBD" },
-          { icon: <ClipboardList size={16} />, label: "SharePoint Tables", valor: FUENTES.filter(f => f.tipo === "sharepoint-table").length, color: "#0F6CBD" },
+          { icon: <Database size={16} />, label: "PostgreSQL", valor: FUENTES.filter(f => !!f.destinoDB).length, color: "#2E7D32" },
+          { icon: <BarChart3 size={16} />, label: "SharePoint", valor: FUENTES.filter(f => f.tipo.includes("sharepoint")).length, color: "#0F6CBD" },
           { icon: <Building2 size={16} />, label: "datos.gov.co", valor: FUENTES.filter(f => f.tipo === "datos-gov").length, color: "#107C10" },
-          { icon: <Database size={16} />, label: "Sites SharePoint", valor: 2, color: "#3D4F5C" },
         ].map(item => (
           <div key={item.label} className="panel" style={{ padding: "16px 20px" }}>
             <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: "#6B7F8C", marginBottom: "6px", display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -317,6 +322,11 @@ export default function AdminPage() {
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: TIPO_BADGE[f.tipo].bg, color: TIPO_BADGE[f.tipo].color, fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "99px", marginTop: "8px" }}>
                     {TIPO_BADGE[f.tipo].icon} {TIPO_BADGE[f.tipo].label}
                   </div>
+                  {f.destinoDB && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#E8F5E9", color: "#2E7D32", fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "99px", marginTop: "4px", marginLeft: "4px" }}>
+                      <Database size={10} /> DB: {f.destinoDB}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -341,6 +351,7 @@ export default function AdminPage() {
                   <div style={{ display: 'grid', gap: '8px', marginBottom: '20px' }}>
                     {fuente.filePath && <div style={{ fontSize: '11px', background: '#F5F7F8', padding: '8px', borderRadius: '4px' }}><strong>Ruta:</strong> {fuente.filePath}</div>}
                     {fuente.tableName && <div style={{ fontSize: '11px', background: '#F5F7F8', padding: '8px', borderRadius: '4px' }}><strong>Tabla/Hoja:</strong> {fuente.tableName}</div>}
+                    {fuente.destinoDB && <div style={{ fontSize: '11px', background: '#E8F5E9', padding: '8px', borderRadius: '4px', color: '#2E7D32' }}><strong>Destino PostgreSQL:</strong> {fuente.destinoDB}</div>}
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px' }}>
@@ -352,14 +363,10 @@ export default function AdminPage() {
                     {tablaState.estado === "ok" && tablaState.datos.length > 0 && (
                       <button
                         onClick={async () => {
-                          const tableMap: Record<string, string> = {
-                            'cifras-sociales-empleo': 'hecho_empleo',
-                            'cifras-sociales-bys': 'hecho_bienes_servicios',
-                            'cifras-sociales-inversion': 'hecho_inversion_social'
-                          };
-                          const targetTable = tableMap[fuente.id];
+                          const targetTable = fuente.destinoDB;
                           if (!targetTable) { alert('No habilitado para sync DB.'); return; }
-                          if (!confirm(`¿Sincronizar ${tablaState.datos.length} filas con ${targetTable}? (Se borrarán datos previos)`)) return;
+                          
+                          if (!confirm(`¿Sincronizar ${tablaState.datos.length} filas con ${targetTable}? (Se aplicarán reglas de inserción y cruce)`)) return;
                           
                           setTablaState(p => ({ ...p, estado: 'loading' }));
                           try {

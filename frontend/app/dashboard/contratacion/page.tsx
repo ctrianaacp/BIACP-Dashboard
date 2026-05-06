@@ -134,10 +134,11 @@ export default function ContratacionPage() {
   const [filtroOp, setFiltroOp] = useState<string[]>([]);
   const [filtroDpto, setFiltroDpto] = useState<string[]>([]);
   const [filtroMun, setFiltroMun] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["bienes-servicios-stats", filtroAnio, filtroOp, filtroDpto, filtroMun],
-    queryFn: () => axios.get(`/api/stats/dashboard?type=bienes-servicios&anio=${filtroAnio}&empresa=${filtroOp}&departamento=${filtroDpto}&municipio=${filtroMun}`).then(res => res.data),
+    queryKey: ["bienes-servicios-stats", filtroAnio, filtroOp, filtroDpto, filtroMun, filtroAfiliada],
+    queryFn: () => axios.get(`/api/stats/dashboard?type=bienes-servicios&anio=${filtroAnio}&empresa=${filtroOp}&departamento=${filtroDpto}&municipio=${filtroMun}&afiliada_acp=${filtroAfiliada}`).then(res => res.data),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -201,7 +202,7 @@ export default function ContratacionPage() {
     };
   }, [petroleo, gas, data]);
 
-  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMun].filter(v => v.length > 0).length;
+  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMun, filtroAfiliada].filter(v => v.length > 0).length;
 
   if (isLoading) return <Loading message="Cargando analítica de contratación..." />;
 
@@ -254,6 +255,7 @@ export default function ContratacionPage() {
           {[
             { label: "Año de Contratación", value: filtroAnio, icon: <Calendar size={14} />, onChange: setFiltroAnio, options: anios },
             { label: "Empresa Operadora", value: filtroOp, icon: <Building2 size={14} />, onChange: (v: string[]) => { setFiltroOp(v); setFiltroDpto([]); setFiltroMun([]); }, options: empresas },
+            { label: "Afiliada ACP", value: filtroAfiliada, icon: <Building2 size={14} />, onChange: setFiltroAfiliada, options: ["Sí", "No"] },
             { label: "Departamento", value: filtroDpto, icon: <MapPin size={14} />, onChange: (v: string[]) => { setFiltroDpto(v); setFiltroMun([]); }, options: departamentos },
             { label: "Municipio", value: filtroMun, icon: <Map size={14} />, onChange: setFiltroMun, options: municipios },
           ].map(f => (
@@ -265,7 +267,7 @@ export default function ContratacionPage() {
             </div>
           ))}
           <button 
-            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMun([]); }} 
+            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMun([]); setFiltroAfiliada([]); }} 
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <RotateCcw size={14} /> Restaurar Vista

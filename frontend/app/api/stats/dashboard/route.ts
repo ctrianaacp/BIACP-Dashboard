@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   const empresa = searchParams.get('empresa');
   const departamento = searchParams.get('departamento');
   const municipio = searchParams.get('municipio');
+  const afiliadaAcp = searchParams.get('afiliada_acp');
 
   let whereClauses = [];
   let params: any[] = [];
@@ -25,9 +26,20 @@ export async function GET(request: Request) {
     whereClauses.push(`departamento_raw = $${params.length + 1}`);
     params.push(departamento);
   }
-  if (municipio && municipio !== 'Todos' && municipio !== 'null') {
+  if (municipio && municipio !== 'Todos' && municipio !== 'null' && municipio !== '') {
     whereClauses.push(`municipio_raw = $${params.length + 1}`);
     params.push(municipio);
+  }
+  if (afiliadaAcp && afiliadaAcp !== 'Todos' && afiliadaAcp !== 'null' && afiliadaAcp !== '') {
+    const isSi = afiliadaAcp.includes('Sí');
+    const isNo = afiliadaAcp.includes('No');
+    if (isSi && !isNo) {
+      whereClauses.push(`empresa_id IN (SELECT id FROM dim_empresas WHERE afiliada_acp = $${params.length + 1})`);
+      params.push(true);
+    } else if (isNo && !isSi) {
+      whereClauses.push(`empresa_id IN (SELECT id FROM dim_empresas WHERE afiliada_acp = $${params.length + 1})`);
+      params.push(false);
+    }
   }
 
   const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -217,10 +229,110 @@ export async function GET(request: Request) {
           COUNT(municipio_id) as normalizados,
           (COUNT(*) - COUNT(municipio_id)) as residuos
         FROM hecho_empleo
+        UNION ALL
+        SELECT 
+          'Producción Petróleo' as tabla,
+          COUNT(*) as total,
+          COUNT(municipio_id) as normalizados,
+          (COUNT(*) - COUNT(municipio_id)) as residuos
+        FROM hecho_produccion
+        UNION ALL
+        SELECT 
+          'Producción Gas' as tabla,
+          COUNT(*) as total,
+          COUNT(municipio_id) as normalizados,
+          (COUNT(*) - COUNT(municipio_id)) as residuos
+        FROM hecho_produccion_gas
       `);
 
       return NextResponse.json({
         data_quality: quality.rows
+      });
+    }
+
+    if (type === 'produccion') {
+      const stats = await query(`
+        SELECT 
+          anio,
+          SUM(produccion_bpd) as total_bpd
+        FROM hecho_produccion
+        ${whereStr}
+        GROUP BY anio
+        ORDER BY anio
+      `, params);
+
+      const byCompany = await query(`
+        SELECT empresa_raw as empresa, SUM(produccion_bpd) as valor
+        FROM hecho_produccion
+        ${whereStr}
+        GROUP BY empresa_raw
+        ORDER BY valor DESC
+        LIMIT 20
+      `, params);
+
+      const byDept = await query(`
+        SELECT departamento_raw as departamento, SUM(produccion_bpd) as valor
+        FROM hecho_produccion
+        ${whereStr}
+        GROUP BY departamento_raw
+        ORDER BY valor DESC
+      `, params);
+
+      return NextResponse.json({
+        time_series: stats.rows,
+        by_company: byCompany.rows,
+        by_dept: byDept.rows
+      });
+    }
+
+    if (type === 'produccion-gas') {
+      const stats = await query(`
+        SELECT 
+          anio,
+          SUM(produccion_mpcd) as total_mpcd
+        FROM hecho_produccion_gas
+        ${whereStr}
+        GROUP BY anio
+        ORDER BY anio
+      `, params);
+
+      const byCompany = await query(`
+        SELECT empresa_raw as empresa, SUM(produccion_mpcd) as valor
+        FROM hecho_produccion_gas
+        ${whereStr}
+        GROUP BY empresa_raw
+        ORDER BY valor DESC
+        LIMIT 20
+      `, params);
+
+      const byDept = await query(`
+        SELECT departamento_raw as departamento, SUM(produccion_mpcd) as valor
+        FROM hecho_produccion_gas
+        ${whereStr}
+        GROUP BY departamento_raw
+        ORDER BY valor DESC
+      `, params);
+
+      return NextResponse.json({
+        time_series: stats.rows,
+        by_company: byCompany.rows,
+        by_dept: byDept.rows
+      });
+    }
+
+    if (type === 'contratos') {
+      const contratos = await query(`
+        SELECT 
+          c.contrato, c.tipo, c.estado, c.etapa_actual, c.cuenca,
+          c.operador_raw, o.afiliada_acp as operador_afiliado,
+          c.contratista1_raw, c.participacion_cont1,
+          c.contratista2_raw, c.participacion_cont2
+        FROM dim_contratos c
+        LEFT JOIN dim_empresas o ON c.operador_id = o.id
+        ORDER BY c.contrato
+      `);
+      return NextResponse.json({
+        data: contratos.rows
       });
     }
 

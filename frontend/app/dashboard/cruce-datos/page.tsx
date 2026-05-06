@@ -1,9 +1,7 @@
 "use client";
-import { useMsal } from "@azure/msal-react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import { fetchExcelXLSX, SHAREPOINT_FILES } from "@/lib/graphClient";
 import { 
   GitMerge, 
   Droplets,
@@ -58,35 +56,19 @@ function calcularPromedioMensual(registros: any[], campoValor: string): number {
   return valores.reduce((s, v) => s + v, 0) / valores.length;
 }
 
-async function cargarPetroleo(instance: any, accounts: any[]) {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.petroleoConsolidado.site,
-    SHAREPOINT_FILES.petroleoConsolidado.path,
-    SHAREPOINT_FILES.petroleoConsolidado.table,
-    instance,
-    account
-  );
-  return rows.map((r: any) => ({
-    Fecha: excelDateToISO(r["Fecha"]),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+async function cargarPetroleo() {
+  const res = await axios.get('/api/produccion?tipo=petroleo');
+  return res.data.map((r: any) => ({
+    Fecha: r.Fecha,
+    Produccion: Number(r.Produccion || 0),
   }));
 }
 
-async function cargarGas(instance: any, accounts: any[]) {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.gasConsolidado.site,
-    SHAREPOINT_FILES.gasConsolidado.path,
-    SHAREPOINT_FILES.gasConsolidado.table,
-    instance,
-    account
-  );
-  return rows.map((r: any) => ({
-    Fecha: excelDateToISO(r["Fecha"]),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
+async function cargarGas() {
+  const res = await axios.get('/api/produccion?tipo=gas');
+  return res.data.map((r: any) => ({
+    Fecha: r.Fecha,
+    Produccion: Number(r.Produccion || 0),
   }));
 }
 
@@ -101,19 +83,15 @@ function KPICard({ label, value, unit, color, icon: Icon }: any) {
 }
 
 export default function CruceDatosPage() {
-  const { instance, accounts } = useMsal();
-
   const { data: petroleo, isLoading: isLoadingP } = useQuery({
     queryKey: ["produccion-petroleo-basico"],
-    queryFn: () => cargarPetroleo(instance, accounts),
-    enabled: accounts.length > 0,
+    queryFn: cargarPetroleo,
     staleTime: 10 * 60 * 1000,
   });
 
   const { data: gas, isLoading: isLoadingG } = useQuery({
     queryKey: ["produccion-gas-basico"],
-    queryFn: () => cargarGas(instance, accounts),
-    enabled: accounts.length > 0,
+    queryFn: cargarGas,
     staleTime: 10 * 60 * 1000,
   });
 

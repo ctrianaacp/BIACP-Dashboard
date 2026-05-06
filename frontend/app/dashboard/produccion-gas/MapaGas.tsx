@@ -8,7 +8,7 @@ import { useMsal } from "@azure/msal-react";
 import Loading from "@/components/Loading";
 import { Layers, Map as MapIcon, Flame, MapPin, Building2 } from "lucide-react";
 import { normalizarMunicipio, normalizarDepartamento, normalizarOperadora } from "@/lib/normalizacion";
-import { fetchExcelXLSX, SHAREPOINT_FILES } from "@/lib/graphClient";
+
 import { formatNum, formatAbbr } from "@/lib/formatters";
 
 const PremiumMap = dynamic(() => import("@/components/PremiumMap"), { 
@@ -71,30 +71,16 @@ function KPICard({ label, value, unit, color, icon: Icon }: {
   );
 }
 
-async function cargarGas(
-  instance: ReturnType<typeof useMsal>["instance"],
-  accounts: ReturnType<typeof useMsal>["accounts"]
-) {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.gasConsolidado.site,
-    SHAREPOINT_FILES.gasConsolidado.path,
-    SHAREPOINT_FILES.gasConsolidado.table,
-    instance,
-    account
-  );
-
-  return rows.map((r: Record<string, unknown>) => ({
-    Departamento: normalizarDepartamento(r["Departamento"] as string),
-    Municipio: normalizarMunicipio(r["Municipio"] as string),
-    Operadora: normalizarOperadora(r["Operadora"] as string),
-    Campo: String(r["Campo"] ?? ""),
-    Contrato: String(r["Contrato"] ?? ""),
-    Mes: String(r["Mes"] ?? ""),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
-    Fecha: excelDateToISO(r["Fecha"])
+async function cargarGas() {
+  const res = await fetch("/api/produccion?tipo=gas");
+  if (!res.ok) throw new Error("Error cargando datos de gas");
+  const data = await res.json();
+  return data.map((r: any) => ({
+    ...r,
+    Departamento: normalizarDepartamento(r.Departamento || ""),
+    Municipio: normalizarMunicipio(r.Municipio || ""),
+    Operadora: normalizarOperadora(r.Operadora || ""),
+    Produccion: Number(r.Produccion) || 0
   }));
 }
 
@@ -113,9 +99,8 @@ export default function MapaGasPage() {
   });
 
   const { data: registros = [], isLoading: isDataLoading, error } = useQuery({
-    queryKey: ["produccion-gas"],
-    queryFn: () => cargarGas(instance, accounts),
-    enabled: accounts.length > 0,
+    queryKey: ["produccion-gas-pg"],
+    queryFn: cargarGas,
     staleTime: 10 * 60 * 1000,
     retry: 0,
   });
@@ -176,7 +161,7 @@ export default function MapaGasPage() {
       if (mpcdPromedio > 0) {
         points.push({
           position: [coords.lng, coords.lat],
-          weight: Math.round(mpcdPromedio), // MPCD promedio del municipio
+          weight: mpcdPromedio, // MPCD promedio del municipio
           label: municipio,
           departamento: regs[0].Departamento,
           subtitle: operadorasList.join(", "),
@@ -204,7 +189,7 @@ export default function MapaGasPage() {
       </div>
 
       <div className="kpi-grid">
-        <KPICard label="MPCD Promedio" value={formatAbbr(Math.round(kpis.mpcd))} unit="MPCD/día" color="secondary" icon={Flame} />
+        <KPICard label="MPCD Promedio" value={formatNum(kpis.mpcd, 2)} unit="MPCD/día" color="secondary" icon={Flame} />
         <KPICard label="Campos activos" value={formatNum(kpis.camposSet)} color="primary" icon={MapPin} />
         <KPICard label="Operadoras" value={formatNum(kpis.operadorasSet)} color="success" icon={Building2} />
         <KPICard label="Municipios" value={formatNum(kpis.municipiosSet)} color="info" icon={MapIcon} />
@@ -330,7 +315,7 @@ export default function MapaGasPage() {
                 </div>
                 <div style="display: flex; gap: 5px; align-items: center; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2);">
                   <span style="font-weight:bold; font-size: 11px; color: #cbd5e1;">MPCD:</span> 
-                  <span style="font-weight:900; color: #4ade80; font-size: 12px;">${Math.round(totalMPCD).toLocaleString('es-CO')}</span>
+                  <span style="font-weight:900; color: #4ade80; font-size: 12px;">${Number(totalMPCD).toLocaleString('es-CO', { maximumFractionDigits: 2 })}</span>
                 </div>
               `,
               style: {

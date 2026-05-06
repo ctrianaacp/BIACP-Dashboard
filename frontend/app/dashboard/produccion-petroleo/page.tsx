@@ -15,7 +15,11 @@ import {
   RotateCcw, 
   Calendar, 
   CalendarDays,
-  Home 
+  Home,
+  Briefcase,
+  Users,
+  Star,
+  BarChart2
 } from "lucide-react";
 import { 
   normalizarOperadora, 
@@ -24,6 +28,7 @@ import {
 } from "@/lib/normalizacion";
 import Loading from "@/components/Loading";
 import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
+import { CheckCircle2 } from "lucide-react";
 import MultiSelect from "@/components/MultiSelect";
 import ExportButton from "@/components/ExportButton";
 import DataTable from "@/components/DataTable";
@@ -39,6 +44,7 @@ interface RegistroPetroleo {
   Produccion: number;
   Fecha: string;
   MunicipioDepartamento: string;
+  AfiliadaACP: string;
 }
 
 // Importar ApexCharts solo en cliente (no SSR)
@@ -112,32 +118,20 @@ function calcularBPDC(registros: RegistroPetroleo[]): number {
   return valores.reduce((s, v) => s + v, 0) / valores.length;
 }
 
-// ─── Loader de datos vía Graph API ───────────────────────────────────────────
-async function cargarPetroleo(
-  instance: ReturnType<typeof useMsal>["instance"],
-  accounts: ReturnType<typeof useMsal>["accounts"]
-): Promise<RegistroPetroleo[]> {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.petroleoConsolidado.site,
-    SHAREPOINT_FILES.petroleoConsolidado.path,
-    SHAREPOINT_FILES.petroleoConsolidado.table,
-    instance,
-    account
-  );
-
-  return rows.map((r: Record<string, unknown>) => ({
-    Departamento: normalizarDepartamento(r["Departamento"] as string),
-    Municipio: normalizarMunicipio(r["Municipio"] as string),
-    Operadora: normalizarOperadora(r["Operadora"] as string),
-    Campo: String(r["Campo"] ?? ""),
-    Contrato: String(r["Contrato"] ?? ""),
-    Mes: String(r["Mes"] ?? ""),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
-    Fecha: excelDateToISO(r["Fecha"]),
-    MunicipioDepartamento: `${normalizarMunicipio(r["Municipio"] as string)} / ${normalizarDepartamento(r["Departamento"] as string)}`,
+// ─── Loader de datos vía API PostgreSQL ───────────────────────────────────────────
+async function cargarPetroleo(): Promise<RegistroPetroleo[]> {
+  const res = await fetch("/api/produccion?tipo=petroleo");
+  if (!res.ok) throw new Error("Error cargando datos de producción");
+  const data = await res.json();
+  
+  // Transformar strings a numbers y normalizar
+  return data.map((r: any) => ({
+    ...r,
+    Departamento: normalizarDepartamento(r.Departamento || ""),
+    Municipio: normalizarMunicipio(r.Municipio || ""),
+    Operadora: normalizarOperadora(r.Operadora || ""),
+    MunicipioDepartamento: `${normalizarMunicipio(r.Municipio || "")} / ${normalizarDepartamento(r.Departamento || "")}`,
+    Produccion: Number(r.Produccion) || 0
   }));
 }
 
@@ -160,7 +154,7 @@ function KPICard({ label, value, unit, color, icon: Icon }: {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function ProduccionPetroleoPage() {
   const { instance, accounts } = useMsal();
-  const [activeTab, setActiveTab] = useState<'indicadores' | 'mapa'>('indicadores');
+  const [activeTab, setActiveTab] = useState<'indicadores' | 'mapa' | 'contratos'>('indicadores');
 
   // Filtros — uno por cada columna de la tabla
   const [filtroAnios, setFiltroAnios] = useState<string[]>([]);
@@ -169,6 +163,8 @@ export default function ProduccionPetroleoPage() {
   const [filtroMunicipios, setFiltroMunicipios] = useState<string[]>([]);
   const [filtroOperadoras, setFiltroOperadoras] = useState<string[]>([]);
   const [filtroCampos, setFiltroCampos] = useState<string[]>([]);
+  const [filtroContratos, setFiltroContratos] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
   // Panel de filtros
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
@@ -180,19 +176,21 @@ export default function ProduccionPetroleoPage() {
     filtroMunicipios.length > 0,
     filtroOperadoras.length > 0,
     filtroCampos.length > 0,
+    filtroContratos.length > 0,
+    filtroAfiliada.length > 0,
   ].filter(Boolean).length;
 
   const limpiarFiltros = () => {
     setFiltroAnios([]); setFiltroMeses([]);
     setFiltroDptos([]); setFiltroMunicipios([]);
     setFiltroOperadoras([]); setFiltroCampos([]);
+    setFiltroContratos([]); setFiltroAfiliada([]);
   };
 
   // Carga de datos
   const { data: registros = [], isLoading, error } = useQuery({
-    queryKey: ["produccion-petroleo"],
-    queryFn: () => cargarPetroleo(instance, accounts),
-    enabled: accounts.length > 0,
+    queryKey: ["produccion-petroleo-pg"],
+    queryFn: cargarPetroleo,
     staleTime: 10 * 60 * 1000,
     retry: 0,
   });
@@ -256,6 +254,16 @@ export default function ProduccionPetroleoPage() {
     return ["Todos", ...Array.from(new Set(base.map((r) => r.Campo))).sort()];
   }, [baseAnioMes, filtroDptos, filtroMunicipios, filtroOperadoras]);
 
+  // Contratos — filtrado por año+mes+dpto+municipio+operadora+campo
+  const contratosFiltrables = useMemo(() => {
+    let base = baseAnioMes;
+    if (filtroDptos.length > 0) base = base.filter((r) => filtroDptos.includes(r.Departamento));
+    if (filtroMunicipios.length > 0) base = base.filter((r) => filtroMunicipios.includes(r.Municipio));
+    if (filtroOperadoras.length > 0) base = base.filter((r) => filtroOperadoras.includes(r.Operadora));
+    if (filtroCampos.length > 0) base = base.filter((r) => filtroCampos.includes(r.Campo));
+    return ["Todos", ...Array.from(new Set(base.map((r) => r.Contrato || 'Sin Contrato'))).sort()];
+  }, [baseAnioMes, filtroDptos, filtroMunicipios, filtroOperadoras, filtroCampos]);
+
   // Datos filtrados — aplica todos los filtros activos
   const filtrados = useMemo(() => {
     return registros.filter((r) => {
@@ -268,9 +276,11 @@ export default function ProduccionPetroleoPage() {
       if (filtroMunicipios.length > 0 && !filtroMunicipios.includes(r.Municipio)) return false;
       if (filtroOperadoras.length > 0 && !filtroOperadoras.includes(r.Operadora)) return false;
       if (filtroCampos.length > 0 && !filtroCampos.includes(r.Campo)) return false;
+      if (filtroContratos.length > 0 && !filtroContratos.includes(r.Contrato || 'Sin Contrato')) return false;
+      if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
       return true;
     });
-  }, [registros, filtroAnios, filtroMeses, filtroDptos, filtroMunicipios, filtroOperadoras, filtroCampos]);
+  }, [registros, filtroAnios, filtroMeses, filtroDptos, filtroMunicipios, filtroOperadoras, filtroCampos, filtroContratos, filtroAfiliada]);
 
   // KPIs agregados
   const kpis = useMemo(() => {
@@ -327,6 +337,118 @@ export default function ProduccionPetroleoPage() {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 8);
   }, [filtrados]);
+
+  // --- NUEVA DATA PARA LA PESTAÑA CONTRATOS ---
+  // Top operadoras con desglose de contratos
+  const operadoraContratos = useMemo(() => {
+    const acc: Record<string, Record<string, typeof filtrados>> = {};
+    filtrados.forEach((r) => {
+      if (!acc[r.Operadora]) acc[r.Operadora] = {};
+      const contratoStr = r.Contrato || 'Sin Contrato';
+      if (!acc[r.Operadora][contratoStr]) acc[r.Operadora][contratoStr] = [];
+      acc[r.Operadora][contratoStr].push(r);
+    });
+
+    const operadorasTotal = Object.entries(acc).map(([op, contratos]) => {
+      const bpcdPorContrato: Record<string, number> = {};
+      let total = 0;
+      Object.entries(contratos).forEach(([c, regs]) => {
+        const val = calcularBPDC(regs);
+        bpcdPorContrato[c] = val;
+        total += val;
+      });
+      return { op, total, bpcdPorContrato };
+    });
+
+    // Tomamos las top 15 operadoras
+    const topOps = operadorasTotal.sort((a, b) => b.total - a.total).slice(0, 15);
+    const todosLosContratos = new Set<string>();
+    topOps.forEach(op => {
+      Object.keys(op.bpcdPorContrato).forEach(c => todosLosContratos.add(c));
+    });
+    const contratosUnicos = Array.from(todosLosContratos);
+
+    const series = contratosUnicos.map(contrato => {
+      return {
+        name: contrato,
+        data: topOps.map(op => Math.round(op.bpcdPorContrato[contrato] || 0))
+      };
+    });
+
+    const seriesLimpias = series.filter(s => s.data.some(v => v > 0));
+    return { categories: topOps.map(o => o.op), series: seriesLimpias };
+  }, [filtrados]);
+
+  // Treemap general de contratos
+  const contratosTree = useMemo(() => {
+    const acc: Record<string, typeof filtrados> = {};
+    filtrados.forEach((r) => {
+      const k = r.Contrato || 'Sin Contrato';
+      if (!acc[k]) acc[k] = [];
+      acc[k].push(r);
+    });
+    return Object.entries(acc)
+      .map(([n, regs]) => ({ x: n, y: Math.round(calcularBPDC(regs)) }))
+      .sort((a, b) => b.y - a.y)
+      .slice(0, 30); // Top 30
+  }, [filtrados]);
+
+  // Top contratos con desglose de operadoras (para ver contratos compartidos)
+  const contratoOperadoras = useMemo(() => {
+    const acc: Record<string, Record<string, typeof filtrados>> = {};
+    filtrados.forEach((r) => {
+      const contratoStr = r.Contrato || 'Sin Contrato';
+      if (!acc[contratoStr]) acc[contratoStr] = {};
+      if (!acc[contratoStr][r.Operadora]) acc[contratoStr][r.Operadora] = [];
+      acc[contratoStr][r.Operadora].push(r);
+    });
+
+    const contratosTotal = Object.entries(acc).map(([c, operadoras]) => {
+      const bpcdPorOperadora: Record<string, number> = {};
+      let total = 0;
+      Object.entries(operadoras).forEach(([op, regs]) => {
+        const val = calcularBPDC(regs);
+        bpcdPorOperadora[op] = val;
+        total += val;
+      });
+      return { c, total, bpcdPorOperadora };
+    });
+
+    // Tomamos los top 15 contratos
+    const topContratos = contratosTotal.sort((a, b) => b.total - a.total).slice(0, 15);
+    const todasLasOperadoras = new Set<string>();
+    topContratos.forEach(contrato => {
+      Object.keys(contrato.bpcdPorOperadora).forEach(op => todasLasOperadoras.add(op));
+    });
+    const operadorasUnicas = Array.from(todasLasOperadoras);
+
+    const series = operadorasUnicas.map(op => {
+      return {
+        name: op,
+        data: topContratos.map(c => Math.round(c.bpcdPorOperadora[op] || 0))
+      };
+    });
+
+    const seriesLimpias = series.filter(s => s.data.some(v => v > 0));
+    return { categories: topContratos.map(c => c.c), series: seriesLimpias };
+  }, [filtrados]);
+
+  // KPIs específicos para la pestaña de contratos
+  const kpisContratos = useMemo(() => {
+    const acc: Record<string, Set<string>> = {};
+    filtrados.forEach((r) => {
+      const c = r.Contrato || 'Sin Contrato';
+      if (!acc[c]) acc[c] = new Set();
+      acc[c].add(r.Operadora);
+    });
+
+    const totalContratos = Object.keys(acc).length;
+    const contratosCompartidos = Object.values(acc).filter(ops => ops.size > 1).length;
+    const top = contratosTree.length > 0 ? contratosTree[0] : { x: '-', y: 0 };
+    const avgBPDC = totalContratos > 0 ? kpis.bpdc / totalContratos : 0;
+
+    return { totalContratos, contratosCompartidos, topContrato: top.x, topContratoBPDC: top.y, avgBPDC };
+  }, [filtrados, contratosTree, kpis.bpdc]);
 
   // ─── Opciones de gráficos ──────────────────────────────────────────────────
   const chartOpts = {
@@ -412,22 +534,28 @@ export default function ProduccionPetroleoPage() {
 
   return (
     <>
-      <div style={{ padding: '24px 24px 0', display: 'flex', gap: 8, borderBottom: '1px solid var(--color-border)', background: '#fff' }}>
+      <div style={{ padding: '24px 24px 0', display: 'flex', gap: 8, borderBottom: '1px solid var(--color-border)', background: '#fff', overflowX: 'auto' }}>
         <button 
           onClick={() => setActiveTab('indicadores')}
-          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'indicadores' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'indicadores' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'indicadores' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'indicadores' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' }}
         >
           Indicadores y Tablas
         </button>
         <button 
+          onClick={() => setActiveTab('contratos')}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'contratos' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'contratos' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' }}
+        >
+          Análisis por Contrato
+        </button>
+        <button 
           onClick={() => setActiveTab('mapa')}
-          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'mapa' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'mapa' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14 }}
+          style={{ padding: '12px 24px', fontWeight: 800, color: activeTab === 'mapa' ? 'var(--color-primary)' : 'var(--color-text-muted)', borderBottom: activeTab === 'mapa' ? '3px solid var(--color-primary)' : '3px solid transparent', background: 'transparent', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' }}
         >
           Mapa Georreferenciado
         </button>
       </div>
 
-      {activeTab === 'indicadores' ? (
+      {activeTab !== 'mapa' ? (
         <div className="page-content">
       {/* ── Panel de Filtros (Drawer) ── */}
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, opacity: filtrosAbiertos ? 1 : 0, pointerEvents: filtrosAbiertos ? "auto" : "none", transition: "opacity 0.25s" }} onClick={() => setFiltrosAbiertos(false)} />
@@ -494,7 +622,19 @@ export default function ProduccionPetroleoPage() {
             <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               <MapPin size={14} /> Campo
             </label>
-            <MultiSelect options={campos} selected={filtroCampos} onChange={setFiltroCampos} />
+            <MultiSelect options={campos} selected={filtroCampos} onChange={(s) => { setFiltroCampos(s); setFiltroContratos([]); }} />
+          </div>
+          <div key="Contrato">
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <MapPin size={14} /> Contrato
+            </label>
+            <MultiSelect options={contratosFiltrables} selected={filtroContratos} onChange={setFiltroContratos} />
+          </div>
+          <div key="Afiliada">
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <CheckCircle2 size={14} /> Afiliada ACP
+            </label>
+            <MultiSelect options={["Sí", "No"]} selected={filtroAfiliada} onChange={setFiltroAfiliada} />
           </div>
           <button 
             onClick={limpiarFiltros}
@@ -505,10 +645,12 @@ export default function ProduccionPetroleoPage() {
         </div>
       </div>
 
-      <div className="page-header">
-        <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Producción Petróleo</h1>
+      {activeTab === 'indicadores' && (
+        <>
+          <div className="page-header">
+            <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Producción Petróleo</h1>
         <p>
-          {filtrados.length.toLocaleString("es-CO")} registros · Fuente: Fiscalización SharePoint
+          {filtrados.length.toLocaleString("es-CO")} registros · Fuente: PostgreSQL (Producción)
           {filtrosActivos > 0 && <span style={{ marginLeft: 12, background: 'var(--color-primary)', color: '#fff', padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>{filtrosActivos} activos</span>}
         </p>
       </div>
@@ -638,14 +780,179 @@ export default function ProduccionPetroleoPage() {
             { key: "Fecha", label: "Fecha", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{v}</span> },
             { key: "Departamento", label: "Departamento" },
             { key: "Municipio", label: "Municipio" },
-            { key: "Operadora", label: "Operadora", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "Operadora", label: "Operadora", render: (v, row: any) => <span style={{ fontWeight: 600 }}>{v} {row.AfiliadaACP === 'Sí' && <span title="Afiliada ACP" style={{ color: '#008054', marginLeft: 4 }}>✓</span>}</span> },
             { key: "Campo", label: "Campo" },
+            { key: "Contrato", label: "Contrato", render: (v) => v || 'Sin Contrato' },
             { key: "Produccion", label: "BPDC", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{Number(v).toLocaleString("es-CO")}</span> },
           ]}
           pageSize={100}
         />
       </div>
-    </div>
+        </>
+      )}
+
+      {activeTab === 'contratos' && (
+        <>
+          <div className="page-header">
+            <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Análisis por Contrato</h1>
+            <p>
+              Participación de las operadoras desglosado por sus contratos en el periodo seleccionado. 
+              Filtros activos: {filtrosActivos}
+            </p>
+          </div>
+
+          <div className="kpi-grid">
+            <KPICard label="Contratos Totales" value={formatNum(kpisContratos.totalContratos)} color="primary" icon={Briefcase} />
+            <KPICard label="Contratos Compartidos" value={formatNum(kpisContratos.contratosCompartidos)} color="secondary" icon={Users} />
+            <KPICard label="Mayor Productor" value={String(kpisContratos.topContrato)} unit={formatAbbr(Math.round(kpisContratos.topContratoBPDC)) + " BPDC"} color="success" icon={Star} />
+            <KPICard label="BPDC Prom. / Contrato" value={formatAbbr(Math.round(kpisContratos.avgBPDC))} unit="Bbl/día" color="info" icon={BarChart2} />
+          </div>
+
+        <div className="panel" id="panel-contratos-stacked" style={{ marginBottom: 24 }}>
+          <div className="panel-header">
+            <span className="panel-title">Producción (BPDC) por Operadora y Contrato</span>
+            <ExportButton targetId="panel-contratos-stacked" fileName="Produccion_Operadora_Contrato" />
+          </div>
+          <div className="panel-body">
+            {typeof window !== "undefined" && operadoraContratos.categories.length > 0 ? (
+              <Chart type="bar" height={450}
+                series={operadoraContratos.series}
+                options={{
+                  ...chartOpts.baseTheme,
+                  chart: { stacked: true, toolbar: { show: true } },
+                  plotOptions: { 
+                    bar: { 
+                      horizontal: false, 
+                      borderRadius: 2, 
+                      columnWidth: "60%",
+                      dataLabels: {
+                        total: {
+                          enabled: true,
+                          style: { color: 'var(--color-text-primary)', fontSize: '11px', fontWeight: 900 },
+                          formatter: (v: string | number) => formatAbbr(Number(v))
+                        }
+                      }
+                    } 
+                  },
+                  xaxis: { 
+                    categories: operadoraContratos.categories, 
+                    labels: { 
+                      style: { colors: "var(--color-text-muted)", fontSize: "10px" }, 
+                      rotate: -45,
+                      hideOverlappingLabels: false
+                    } 
+                  },
+                  yaxis: { 
+                    labels: { formatter: (v: number) => formatAbbr(v) },
+                    title: { text: "BPDC", style: { color: "var(--color-text-muted)" } }
+                  },
+                  dataLabels: { 
+                    enabled: true,
+                    formatter: (val: number) => val > 0 ? formatAbbr(val) : '',
+                    style: { fontSize: "10px", fontWeight: 800, colors: ["#ffffff"] }
+                  },
+                  stroke: { width: 0 },
+                  legend: { position: 'right', offsetY: 40, labels: { colors: 'var(--color-text-primary)' } },
+                  fill: { opacity: 1 },
+                  tooltip: {
+                    theme: "light",
+                    y: { formatter: (v: number) => `${formatNum(v)} Bbl/día` },
+                    shared: false,
+                    intersect: true
+                  }
+                }}
+              />
+            ) : (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>No hay datos suficientes para graficar.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel" id="panel-contratos-inverso" style={{ marginBottom: 24 }}>
+          <div className="panel-header">
+            <span className="panel-title">Producción (BPDC) por Contrato y Operadora (Top 15 Contratos)</span>
+            <ExportButton targetId="panel-contratos-inverso" fileName="Produccion_Contrato_Operadora" />
+          </div>
+          <div className="panel-body">
+            {typeof window !== "undefined" && contratoOperadoras.categories.length > 0 ? (
+              <Chart type="bar" height={450}
+                series={contratoOperadoras.series}
+                options={{
+                  ...chartOpts.baseTheme,
+                  chart: { stacked: true, toolbar: { show: true } },
+                  plotOptions: { 
+                    bar: { 
+                      horizontal: false, 
+                      borderRadius: 2, 
+                      columnWidth: "60%",
+                      dataLabels: {
+                        total: {
+                          enabled: true,
+                          style: { color: 'var(--color-text-primary)', fontSize: '11px', fontWeight: 900 },
+                          formatter: (v: string | number) => formatAbbr(Number(v))
+                        }
+                      }
+                    } 
+                  },
+                  xaxis: { 
+                    categories: contratoOperadoras.categories, 
+                    labels: { 
+                      style: { colors: "var(--color-text-muted)", fontSize: "10px" }, 
+                      rotate: -45,
+                      hideOverlappingLabels: false
+                    } 
+                  },
+                  yaxis: { 
+                    labels: { formatter: (v: number) => formatAbbr(v) },
+                    title: { text: "BPDC", style: { color: "var(--color-text-muted)" } }
+                  },
+                  dataLabels: { 
+                    enabled: true,
+                    formatter: (val: number) => val > 0 ? formatAbbr(val) : '',
+                    style: { fontSize: "10px", fontWeight: 800, colors: ["#ffffff"] }
+                  },
+                  stroke: { width: 0 },
+                  legend: { position: 'right', offsetY: 40, labels: { colors: 'var(--color-text-primary)' } },
+                  fill: { opacity: 1 },
+                  tooltip: {
+                    theme: "light",
+                    y: { formatter: (v: number) => `${formatNum(v)} Bbl/día` },
+                    shared: false,
+                    intersect: true
+                  }
+                }}
+              />
+            ) : (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>No hay datos suficientes para graficar.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel" id="panel-contratos-treemap" style={{ marginBottom: 24 }}>
+          <div className="panel-header">
+            <span className="panel-title">Top 30 Contratos (Global)</span>
+            <ExportButton targetId="panel-contratos-treemap" fileName="Top_Contratos" />
+          </div>
+          <div className="panel-body">
+            {typeof window !== "undefined" && contratosTree.length > 0 && (
+              <Chart type="treemap" height={380}
+                series={[{ data: contratosTree }]}
+                options={{
+                  ...chartOpts.baseTheme,
+                  colors: ["#D44D03", "#003745", "#008054", "#0277BD", "#C68400", "#C62828", "#0097A7", "#558B2F"],
+                  plotOptions: { treemap: { distributed: true, enableShades: false } },
+                  dataLabels: {
+                    enabled: true,
+                    formatter: (text: string, op: any) => [text, formatNum(op.value)]
+                  }
+                }}
+              />
+            )}
+          </div>
+        </div>
+        </>
+      )}
+      </div>
     ) : (
       <MapaPetroleoPage />
     )}

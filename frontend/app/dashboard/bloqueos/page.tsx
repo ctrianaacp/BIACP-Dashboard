@@ -28,6 +28,7 @@ import { formatNum, formatAbbr } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
 import DataTable from "@/components/DataTable";
+import { useBotContext } from "@/lib/chatStore";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface RegistroBloqueo {
@@ -41,49 +42,13 @@ interface RegistroBloqueo {
   DuracionDias: number;
   Estado: string;
   Causa: string;
+  AfiliadaACP: string;
 }
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 // ─── Helpers de Mapeo Dinámico ────────────────────────────────────────────────
-// Busca un valor en el objeto r basado en una lista de posibles nombres de columna
-function getVal(r: Record<string, unknown>, keys: string[]): any {
-  if (!r) return null;
-  const rKeys = Object.keys(r);
-  
-  // 1. Intento por coincidencia exacta (normalizada)
-  for (const k of keys) {
-    const target = k.trim().toUpperCase();
-    const found = rKeys.find(rk => rk.trim().toUpperCase() === target);
-    if (found) return r[found];
-  }
-  
-  // 2. Intento por sub-string si es para fechas (buscar algo que tenga 'FECHA' o 'DATE')
-  if (keys.some(k => k.toUpperCase().includes("FECHA"))) {
-    const found = rKeys.find(rk => {
-      const normalized = rk.trim().toUpperCase();
-      return normalized.includes("FECHA") || normalized.includes("DATE");
-    });
-    if (found) return r[found];
-  }
 
-  // 3. Intento por sub-string general para otros campos (Dpto, Mpio, etc)
-  const firstKey = keys[0].toUpperCase();
-  if (firstKey === "DEPARTAMENTO") {
-    const found = rKeys.find(rk => rk.trim().toUpperCase().includes("DPTO") || rk.trim().toUpperCase().includes("DEPARTA"));
-    if (found) return r[found];
-  }
-  
-  if (firstKey === "OPERADORA") {
-    const found = rKeys.find(rk => {
-      const norm = rk.trim().toUpperCase();
-      return norm.includes("OPERADOR") || norm.includes("EMPRESA") || norm.includes("COMPAÑ") || norm.includes("COMPAN") || norm.includes("CIA");
-    });
-    if (found) return r[found];
-  }
-  
-  return null;
-}
 
 function excelDateToISO(serial: unknown): string {
   if (serial === null || serial === undefined || String(serial).trim() === "") return "";
@@ -176,72 +141,7 @@ async function cargarGas(instance: any, accounts: any[]) {
   }));
 }
 
-// ─── Loader Bloqueos ──────────────────────────────────────────────────────────
-async function cargarBloqueos(
-  instance: ReturnType<typeof useMsal>["instance"],
-  accounts: ReturnType<typeof useMsal>["accounts"]
-): Promise<RegistroBloqueo[]> {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
 
-  const [rowsHist, rowsSim] = await Promise.all([
-    fetchExcelXLSX(
-      SHAREPOINT_FILES.bloqueosHistorico.site,
-      SHAREPOINT_FILES.bloqueosHistorico.path,
-      SHAREPOINT_FILES.bloqueosHistorico.table,
-      instance, account
-    ).catch(e => { console.error("Error histórico:", e); return []; }),
-    fetchExcelXLSX(
-      SHAREPOINT_FILES.bloqueosSIM.site,
-      SHAREPOINT_FILES.bloqueosSIM.path,
-      SHAREPOINT_FILES.bloqueosSIM.table,
-      instance, account
-    ).catch(e => { console.error("Error SIM vigente:", e); return []; })
-  ]);
-
-  const allRows = [...rowsHist, ...rowsSim];
-  if (allRows.length === 0) return [];
-
-  const resultData = allRows.map((r: Record<string, unknown>, idx) => {
-    // 🔍 Mapping dinámico mejorado
-    if (idx === 0) console.log("[BIACP] Inspeccionando fila Excel Bloqueos:", Object.keys(r));
-    const fRaw = getVal(r, ["FECHA HECHO", "Fecha", "FECHA", "fecha_inicio", "FECHA_INICIO"]);
-    const fecha = excelDateToISO(fRaw);
-    
-    const dRaw = getVal(r, ["Departamento", "DEPARTAMENTO", "Dpto", "DPTO"]);
-    const mRaw = getVal(r, ["Municipio", "MUNICIPIO", "Mpio", "MUN"]);
-    const oRaw = getVal(r, ["Operadora", "OPERADOR", "Empresa", "OPERADORA", "COMPAÑÍA", "COMPAÑIA", "COMPANIA", "CIA", "Cia", "EMPRESA_OPERADORA", "Operador Registro"]);
-    const tRaw = getVal(r, ["Alarma / Bloqueo", "Alarma/Bloqueo", "Tipo", "TIPO", "TIPO DE EVENTO", "Tipo_Evento", "TIPO_EVENTO", "EVENTO", "Clase"]);
-    const uRaw = getVal(r, ["Duracion", "DURACION", "duracion_dias", "Dias", "Días"]);
-    const sRaw = getVal(r, ["Estado", "ESTADO", "ESTADO_ACTUAL", "ESTADO_DEL_BLOQUEO", "ESTADO_SIM", "SITUACION", "Situacion", "Situación", "SituacionActual"]);
-    const cRaw = getVal(r, ["Causa", "CAUSA", "Causa Principal", "Resumen", "MOTIVO"]);
-
-    const anio = fecha ? fecha.substring(0, 4) : "";
-    const mesNum = fecha ? parseInt(fecha.substring(5, 7)) : 0;
-
-    return {
-      Fecha: fecha,
-      Anio: anio,
-      Mes: mesNum > 0 ? MESES[mesNum] : "",
-      Departamento: normalizarDepartamento(dRaw ? String(dRaw) : ""),
-      Municipio: normalizarMunicipio(mRaw ? String(mRaw) : ""),
-      Operadora: normalizarOperadora(oRaw ? String(oRaw) : ""),
-      TipoEvento: normalizarAlarmaBloqueo(tRaw ? String(tRaw) : ""),
-      DuracionDias: Number(uRaw) || 0,
-      Estado: String(sRaw ?? ""),
-      Causa: String(cRaw ?? ""),
-    };
-  }).filter(r => r.Fecha !== "" && r.Anio.length === 4);
-
-  // De-duplicación
-  const seen = new Set<string>();
-  return resultData.filter(r => {
-    const sig = `${r.Fecha}|${r.Municipio}|${r.Operadora}|${r.TipoEvento}|${r.DuracionDias}`;
-    if (seen.has(sig)) return false;
-    seen.add(sig);
-    return true;
-  });
-}
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 function KPICard({ label, value, unit, color, icon: Icon }: { label: string; value: string; unit?: string; color: string; icon: any }) {
@@ -262,12 +162,20 @@ export default function BloqueosPage() {
   const [filtroMunicipio, setFiltroMunicipio] = useState<string[]>([]);
   const [filtroOperadora, setFiltroOperadora] = useState<string[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+
+  useBotContext("SIM Bloqueos", {
+    filtros: { filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroTipo, filtroAfiliada }
+  });
 
   const { data: registros = [], isLoading, error } = useQuery({
     queryKey: ["bloqueos"],
-    queryFn: () => cargarBloqueos(instance, accounts),
-    enabled: accounts.length > 0,
+    queryFn: async () => {
+      const res = await fetch("/api/bloqueos");
+      if (!res.ok) throw new Error("Error cargando bloqueos de la base de datos");
+      return res.json() as Promise<RegistroBloqueo[]>;
+    },
     staleTime: 5 * 60 * 1000,
   });
 
@@ -285,9 +193,10 @@ export default function BloqueosPage() {
     return baseOperacion.filter(r => {
       if (filtroOperadora.length > 0 && !filtroOperadora.includes(r.Operadora)) return false;
       if (filtroTipo.length > 0 && !filtroTipo.includes(r.TipoEvento)) return false;
+      if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
       return true;
     });
-  }, [baseOperacion, filtroOperadora, filtroTipo]);
+  }, [baseOperacion, filtroOperadora, filtroTipo, filtroAfiliada]);
 
   const kpis = useMemo(() => ({
     total: filtrados.length,
@@ -383,7 +292,7 @@ export default function BloqueosPage() {
     theme: { mode: "light" as const },
   };
 
-  const filtrosActivos = [filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroTipo].filter(a => a.length > 0).length;
+  const filtrosActivos = [filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroTipo, filtroAfiliada].filter(a => a.length > 0).length;
 
   if (isLoading) return <Loading message="Analizando historial de alarmas y bloqueos (SIM)..." />;
   if (error) return <div className="page-content" style={{padding:48, textAlign:"center", color:"var(--color-danger)"}}>⚠️ Error: {String(error)}</div>;
@@ -413,6 +322,7 @@ export default function BloqueosPage() {
             { label: "Departamento", value: filtroDpto, icon: <MapPin size={14} />, onChange: (v: string[]) => { setFiltroDpto(v); setFiltroMunicipio([]); }, options: departamentos },
             { label: "Municipio", value: filtroMunicipio, icon: <Home size={14} />, onChange: setFiltroMunicipio, options: municipios },
             { label: "Operadora", value: filtroOperadora, icon: <Building2 size={14} />, onChange: setFiltroOperadora, options: operadoras },
+            { label: "Afiliada ACP", value: filtroAfiliada, icon: <Building2 size={14} />, onChange: setFiltroAfiliada, options: ["Sí", "No"] },
           ].map(f => (
             <div key={f.label}>
               <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -422,7 +332,7 @@ export default function BloqueosPage() {
             </div>
           ))}
           <button 
-            onClick={() => { setFiltroAnio([]); setFiltroMes([]); setFiltroDpto([]); setFiltroMunicipio([]); setFiltroOperadora([]); setFiltroTipo([]); }} 
+            onClick={() => { setFiltroAnio([]); setFiltroMes([]); setFiltroDpto([]); setFiltroMunicipio([]); setFiltroOperadora([]); setFiltroTipo([]); setFiltroAfiliada([]); }} 
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <RotateCcw size={14} /> Limpiar Filtros

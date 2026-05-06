@@ -86,6 +86,12 @@ html, body {
   margin-left: var(--sidebar-width); flex: 1;
   width: calc(100% - var(--sidebar-width)); min-height: 100vh;
   display: flex; flex-direction: column; background: var(--color-bg);
+  transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 1025px) {
+  .app-layout.desktop-collapsed .sidebar { transform: translateX(-100%); }
+  .app-layout.desktop-collapsed .main-content { margin-left: 0; width: 100%; }
 }
 
 @media (max-width: 1024px) {
@@ -115,7 +121,12 @@ html, body {
 .topbar-right { display: flex; align-items: center; gap: 16px; }
 .topbar-date { font-size: 13px; color: var(--color-text-muted); font-weight: 600; }
 .sidebar-toggle { display: none; background: none; border: none; cursor: pointer; color: var(--color-secondary); padding: 8px; }
-@media (max-width: 1024px) { .sidebar-toggle { display: block; } }
+.desktop-toggle { display: flex; background: none; border: none; cursor: pointer; color: var(--color-secondary); padding: 8px; border-radius: 6px; transition: background 0.2s; align-items: center; justify-content: center; }
+.desktop-toggle:hover { background: rgba(0,0,0,0.05); }
+@media (max-width: 1024px) { 
+  .sidebar-toggle { display: block; }
+  .desktop-toggle { display: none; }
+}
 
 .topbar-admin-nav { display: flex; align-items: center; gap: 8px; padding-right: 16px; border-right: 1px solid var(--color-border); }
 .btn-top-admin { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; text-decoration: none; color: var(--color-text-secondary); transition: all 0.2s; }
@@ -289,4 +300,46 @@ tr:hover td { background: var(--color-primary-bg); }
 @keyframes pulseText {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
+}
+
+/* ─── Corrección de Contraste para Tooltips de Gráficos (ApexCharts) ─── */
+.apexcharts-tooltip {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1) !important;
+}
+.apexcharts-tooltip-title {
+  background: #f8fafc !important;
+  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  font-family: var(--font-main) !important;
+}
+.apexcharts-tooltip-text-y-value,
+.apexcharts-tooltip-text-y-label,
+.apexcharts-tooltip-text-z-value,
+.apexcharts-tooltip-text-x-value {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  font-family: var(--font-main) !important;
+}
+/* Forzar contraste solo en TEXTO, no en markers de color */
+.apexcharts-tooltip-text,
+.apexcharts-tooltip-text-y-label,
+.apexcharts-tooltip-text-y-value,
+.apexcharts-tooltip-text-goals-label,
+.apexcharts-tooltip-text-goals-value,
+.apexcharts-tooltip-text-z-label,
+.apexcharts-tooltip-text-z-value {
+  color: #1e293b !important;
+  font-family: var(--font-main) !important;
+}
+/* Fondo transparente para que en pie/donut no coloree el fondo entero */
+.apexcharts-tooltip-series-group {
+  background-color: transparent !important;
+}
+/* Preservar el color original del marker (circulito de convención) */
+.apexcharts-tooltip-marker {
+  margin-right: 8px !important;
 }

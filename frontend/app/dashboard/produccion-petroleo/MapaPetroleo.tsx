@@ -8,7 +8,7 @@ import { useMsal } from "@azure/msal-react";
 import Loading from "@/components/Loading";
 import { Layers, Map as MapIcon, Droplets, MapPin, Building2 } from "lucide-react";
 import { normalizarMunicipio, normalizarDepartamento, normalizarOperadora } from "@/lib/normalizacion";
-import { fetchExcelXLSX, SHAREPOINT_FILES } from "@/lib/graphClient";
+
 import { formatNum, formatAbbr } from "@/lib/formatters";
 
 const PremiumMap = dynamic(() => import("@/components/PremiumMap"), { 
@@ -71,30 +71,16 @@ function KPICard({ label, value, unit, color, icon: Icon }: {
   );
 }
 
-async function cargarPetroleo(
-  instance: ReturnType<typeof useMsal>["instance"],
-  accounts: ReturnType<typeof useMsal>["accounts"]
-) {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.petroleoConsolidado.site,
-    SHAREPOINT_FILES.petroleoConsolidado.path,
-    SHAREPOINT_FILES.petroleoConsolidado.table,
-    instance,
-    account
-  );
-
-  return rows.map((r: Record<string, unknown>) => ({
-    Departamento: normalizarDepartamento(r["Departamento"] as string),
-    Municipio: normalizarMunicipio(r["Municipio"] as string),
-    Operadora: normalizarOperadora(r["Operadora"] as string),
-    Campo: String(r["Campo"] ?? ""),
-    Contrato: String(r["Contrato"] ?? ""),
-    Mes: String(r["Mes"] ?? ""),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
-    Fecha: excelDateToISO(r["Fecha"])
+async function cargarPetroleo() {
+  const res = await fetch("/api/produccion?tipo=petroleo");
+  if (!res.ok) throw new Error("Error cargando datos de producción");
+  const data = await res.json();
+  return data.map((r: any) => ({
+    ...r,
+    Departamento: normalizarDepartamento(r.Departamento || ""),
+    Municipio: normalizarMunicipio(r.Municipio || ""),
+    Operadora: normalizarOperadora(r.Operadora || ""),
+    Produccion: Number(r.Produccion) || 0
   }));
 }
 
@@ -113,9 +99,8 @@ export default function MapaPetroleoPage() {
   });
 
   const { data: registros = [], isLoading: isDataLoading, error } = useQuery({
-    queryKey: ["produccion-petroleo"],
-    queryFn: () => cargarPetroleo(instance, accounts),
-    enabled: accounts.length > 0,
+    queryKey: ["produccion-petroleo-pg"],
+    queryFn: cargarPetroleo,
     staleTime: 10 * 60 * 1000,
     retry: 0,
   });

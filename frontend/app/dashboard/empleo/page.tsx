@@ -31,6 +31,7 @@ interface RegistroEmpleo {
   EmpleoNacional: number;
   EmpleoForaneo: number;
   Anio: string;
+  AfiliadaACP: string;
 }
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -125,6 +126,7 @@ async function cargarEmpleo(): Promise<RegistroEmpleo[]> {
     EmpleoNacional: r.origen_contratacion === 'No Local' ? Number(r.num_empleos || 0) : 0,
     EmpleoForaneo: 0,
     Anio: String(r.anio || ""),
+    AfiliadaACP: r.afiliada_acp ? "Sí" : "No",
   }));
 }
 
@@ -145,6 +147,7 @@ export default function EmpleoPage() {
   const [filtroDpto, setFiltroDpto] = useState<string[]>([]);
   const [filtroMpio, setFiltroMpio] = useState<string[]>([]);
   const [filtroAnio, setFiltroAnio] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
 
   const { data: registros = [], isLoading, error } = useQuery({
     queryKey: ["empleo"],
@@ -162,8 +165,9 @@ export default function EmpleoPage() {
     if (filtroDpto.length > 0 && !filtroDpto.includes(r.Departamento)) return false;
     if (filtroMpio.length > 0 && !filtroMpio.includes(r.Municipio)) return false;
     if (filtroAnio.length > 0 && !filtroAnio.includes(r.Anio)) return false;
+    if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
     return true;
-  }), [registros, filtroOp, filtroDpto, filtroMpio, filtroAnio]);
+  }), [registros, filtroOp, filtroDpto, filtroMpio, filtroAnio, filtroAfiliada]);
 
   const kpis = useMemo(() => ({
     local: filtrados.reduce((s, r) => s + r.EmpleoLocal, 0),
@@ -253,7 +257,7 @@ export default function EmpleoPage() {
   };
 
   const total = kpis.local + kpis.nacional + kpis.foraneo;
-  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMpio].filter(v => v.length > 0).length;
+  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMpio, filtroAfiliada].filter(v => v.length > 0).length;
 
   if (isLoading) return <Loading message="Cargando datos de empleo y capital humano..." />;
 
@@ -299,6 +303,7 @@ export default function EmpleoPage() {
           {[
             { label: "Año", value: filtroAnio, icon: <Calendar size={14} />, onChange: setFiltroAnio, options: anios },
             { label: "Empresa", value: filtroOp, icon: <Building2 size={14} />, onChange: setFiltroOp, options: empresas },
+            { label: "Afiliada ACP", value: filtroAfiliada, icon: <Building2 size={14} />, onChange: setFiltroAfiliada, options: ["Sí", "No"] },
             { label: "Departamento", value: filtroDpto, icon: <MapPin size={14} />, onChange: setFiltroDpto, options: departamentos },
             { label: "Municipio", value: filtroMpio, icon: <Home size={14} />, onChange: setFiltroMpio, options: municipios },
           ].map(f => (
@@ -310,7 +315,7 @@ export default function EmpleoPage() {
             </div>
           ))}
           <button 
-            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMpio([]); }} 
+            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMpio([]); setFiltroAfiliada([]); }} 
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <RotateCcw size={14} /> Limpiar Filtros

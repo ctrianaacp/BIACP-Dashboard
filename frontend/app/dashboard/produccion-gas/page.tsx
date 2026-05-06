@@ -11,6 +11,7 @@ import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import DataTable from "@/components/DataTable";
 import MultiSelect from "@/components/MultiSelect";
+import { CheckCircle2 } from "lucide-react";
 import { 
   Flame, 
   MapPin, 
@@ -31,10 +32,10 @@ interface RegistroGas {
   Operadora: string;
   Departamento: string;
   Municipio: string;
-  Mes: string;
   Produccion: number;
   Fecha: string;
   MunicipioDepartamento: string;
+  AfiliadaACP: string;
 }
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -92,32 +93,19 @@ function calcularMPGDPromedio(registros: RegistroGas[]): number {
   return valores.reduce((s, v) => s + v, 0) / valores.length;
 }
 
-// ─── Carga de datos ───────────────────────────────────────────────────────────
-async function cargarGas(
-  instance: ReturnType<typeof useMsal>["instance"],
-  accounts: ReturnType<typeof useMsal>["accounts"]
-): Promise<RegistroGas[]> {
-  const account = accounts[0];
-  if (!account) throw new Error("No hay sesión activa");
-
-  const rows = await fetchExcelXLSX(
-    SHAREPOINT_FILES.gasConsolidado.site,
-    SHAREPOINT_FILES.gasConsolidado.path,
-    SHAREPOINT_FILES.gasConsolidado.table,
-    instance,
-    account
-  );
-
-  return rows.map((r: Record<string, unknown>) => ({
-    Campo: String(r["Campo"] ?? ""),
-    Contrato: String(r["Contrato"] ?? ""),
-    Operadora: normalizarOperadora(r["Operadora"] as string),
-    Departamento: normalizarDepartamento(r["Departamento"] as string),
-    Municipio: normalizarMunicipio(r["Municipio"] as string),
-    Mes: String(r["Mes"] ?? ""),
-    Produccion: Number(r["Producción"] ?? r["Produccion"] ?? 0),
-    Fecha: excelDateToISO(r["Fecha"]),
-    MunicipioDepartamento: `${normalizarMunicipio(r["Municipio"] as string)} / ${normalizarDepartamento(r["Departamento"] as string)}`,
+// ─── Carga de datos vía API PostgreSQL ───────────────────────────────────────────
+async function cargarGas(): Promise<RegistroGas[]> {
+  const res = await fetch("/api/produccion?tipo=gas");
+  if (!res.ok) throw new Error("Error cargando datos de gas");
+  const data = await res.json();
+  
+  return data.map((r: any) => ({
+    ...r,
+    Departamento: normalizarDepartamento(r.Departamento || ""),
+    Municipio: normalizarMunicipio(r.Municipio || ""),
+    Operadora: normalizarOperadora(r.Operadora || ""),
+    MunicipioDepartamento: `${normalizarMunicipio(r.Municipio || "")} / ${normalizarDepartamento(r.Departamento || "")}`,
+    Produccion: Number(r.Produccion) || 0
   }));
 }
 
@@ -154,25 +142,26 @@ export default function ProduccionGasPage() {
   const [filtroMunicipio, setFiltroMunicipio] = useState<string[]>([]);
   const [filtroOperadora, setFiltroOperadora] = useState<string[]>([]);
   const [filtroCampo, setFiltroCampo] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
 
   // Panel lateral
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
   // Contador de filtros activos
   const filtrosActivos = [
-    filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroCampo
+    filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroCampo, filtroAfiliada
   ].filter(v => v.length > 0).length;
 
   const limpiarFiltros = () => {
     setFiltroAnio([]); setFiltroMes([]);
     setFiltroDpto([]); setFiltroMunicipio([]);
     setFiltroOperadora([]); setFiltroCampo([]);
+    setFiltroAfiliada([]);
   };
 
   const { data: registros = [], isLoading, error } = useQuery({
-    queryKey: ["produccion-gas"],
-    queryFn: () => cargarGas(instance, accounts),
-    enabled: accounts.length > 0,
+    queryKey: ["produccion-gas-pg"],
+    queryFn: cargarGas,
     staleTime: 10 * 60 * 1000,
     retry: 0,
   });
@@ -234,9 +223,10 @@ export default function ProduccionGasPage() {
       if (filtroMunicipio.length > 0 && !filtroMunicipio.includes(r.Municipio)) return false;
       if (filtroOperadora.length > 0 && !filtroOperadora.includes(r.Operadora)) return false;
       if (filtroCampo.length > 0 && !filtroCampo.includes(r.Campo)) return false;
+      if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
       return true;
     });
-  }, [registros, filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroCampo]);
+  }, [registros, filtroAnio, filtroMes, filtroDpto, filtroMunicipio, filtroOperadora, filtroCampo, filtroAfiliada]);
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -410,6 +400,12 @@ export default function ProduccionGasPage() {
               <MultiSelect options={f.options} selected={f.value} onChange={f.onChange} />
             </div>
           ))}
+          <div key="Afiliada">
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <CheckCircle2 size={14} /> Afiliada ACP
+            </label>
+            <MultiSelect options={["Sí", "No"]} selected={filtroAfiliada} onChange={setFiltroAfiliada} />
+          </div>
           <button 
             onClick={limpiarFiltros}
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -422,13 +418,13 @@ export default function ProduccionGasPage() {
       <div className="page-header">
         <h1 style={{ color: 'var(--color-secondary)', fontWeight: 900 }}>Producción Gas Natural</h1>
         <p>
-          {filtrados.length.toLocaleString("es-CO")} registros · Fuente: Fiscalización SharePoint
+          {filtrados.length.toLocaleString("es-CO")} registros · Fuente: PostgreSQL (Producción)
           {filtrosActivos > 0 && <span style={{ marginLeft: 12, background: 'var(--color-secondary)', color: '#fff', padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>{filtrosActivos} activos</span>}
         </p>
       </div>
 
       <div className="kpi-grid">
-        <KPICard label="MPGD Promedio" value={formatAbbr(kpis.mpgdPromedio)} unit="MPCD/día" color="secondary" icon={Flame} />
+        <KPICard label="MPGD Promedio" value={formatNum(kpis.mpgdPromedio, 2)} unit="MPCD/día" color="secondary" icon={Flame} />
         <KPICard label="Campos activos" value={formatNum(kpis.camposSet)} color="primary" icon={MapPin} />
         <KPICard label="Operadoras" value={formatNum(kpis.ops)} color="success" icon={Building2} />
         <KPICard label="Municipios" value={formatNum(kpis.municipiosSet)} color="info" icon={Map} />
@@ -508,7 +504,7 @@ export default function ProduccionGasPage() {
                   colors: ["#D44D03"],
                   dataLabels: { 
                     enabled: true, 
-                    formatter: (v: number) => formatNum(v),
+                    formatter: (v: number) => formatNum(v, 2),
                     style: { fontSize: "11px", fontWeight: 700 }
                   },
                 }}
@@ -533,7 +529,7 @@ export default function ProduccionGasPage() {
                 plotOptions: { treemap: { distributed: true, enableShades: false } },
                 dataLabels: {
                   enabled: true,
-                  formatter: (text: string, op: any) => [text, formatNum(op.value)]
+                  formatter: (text: string, op: any) => [text, formatNum(op.value, 2)]
                 }
               }}
             />
@@ -552,7 +548,7 @@ export default function ProduccionGasPage() {
             { key: "Fecha", label: "Fecha", width: "110px", render: (v) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{v}</span> },
             { key: "Departamento", label: "Departamento" },
             { key: "Municipio", label: "Municipio" },
-            { key: "Operadora", label: "Operadora", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+            { key: "Operadora", label: "Operadora", render: (v, row: any) => <span style={{ fontWeight: 600 }}>{v} {row.AfiliadaACP === 'Sí' && <span title="Afiliada ACP" style={{ color: '#008054', marginLeft: 4 }}>✓</span>}</span> },
             { key: "Campo", label: "Campo" },
             { key: "Produccion", label: "MPCD", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-secondary)" }}>{Number(v).toLocaleString("es-CO", { maximumFractionDigits: 2 })}</span> },
           ]}

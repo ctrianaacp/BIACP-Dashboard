@@ -67,10 +67,10 @@ export default function DashboardHome() {
       <div className="modules-grid">
         {MODULOS.map((mod) => (
           <Link href={mod.href} key={mod.href} style={{ textDecoration: "none" }}>
-            <div className={`kpi-card ${mod.color}`} style={{ cursor: "pointer", height: "100%", display: 'flex', flexDirection: 'column', padding: '24px' }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                <span style={{ color: 'var(--color-primary)', background: 'var(--color-bg)', padding: 12, borderRadius: 12, boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <mod.icon size={28} strokeWidth={2.5} />
+            <div className={`kpi-card ${mod.color}`} style={{ cursor: "pointer", height: "100%", display: 'flex', flexDirection: 'column', padding: '16px' }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <span style={{ color: 'var(--color-primary)', background: 'var(--color-bg)', padding: 8, borderRadius: 8, boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <mod.icon size={22} strokeWidth={2.5} />
                 </span>
                 <span style={{
                   fontSize: "10px",
@@ -84,14 +84,13 @@ export default function DashboardHome() {
                   border: "1px solid var(--color-border)",
                 }}>{mod.kpi}</span>
               </div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-secondary)', marginBottom: 8 }}>{mod.label}</div>
-              <p style={{ fontSize: "13px", color: "var(--color-text-muted)", lineHeight: 1.5, flex: 1, margin: 0 }}>{mod.desc}</p>
-              
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-secondary)', marginBottom: 4 }}>{mod.label}</div>
+              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.4, flex: 1, margin: 0 }}>{mod.desc}</p>
               <div style={{
-                marginTop: 20,
-                paddingTop: 16,
+                marginTop: 12,
+                paddingTop: 12,
                 borderTop: '1px solid var(--color-border)',
-                fontSize: "12px",
+                fontSize: "11px",
                 fontWeight: 700,
                 color: 'var(--color-primary)',
                 display: "flex",

@@ -29,6 +29,7 @@ interface RegistroInvSocial {
   Empresa: string; Departamento: string; Municipio: string;
   MontoInvertido: number; Beneficiarios: number;
   TipoProyecto: string; Anio: string;
+  AfiliadaACP: string;
 }
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -126,6 +127,7 @@ async function cargarInvSocial(): Promise<RegistroInvSocial[]> {
     Beneficiarios: Number(r.num_beneficiarios || r.beneficiarios_totales || 0),
     TipoProyecto: String(r.tipo_inversion || ""),
     Anio: String(r.anio || ""),
+    AfiliadaACP: r.afiliada_acp ? "Sí" : "No",
   }));
 }
 
@@ -343,6 +345,7 @@ export default function InversionSocialPage() {
   const [filtroDpto, setFiltroDpto] = useState<string[]>([]);
   const [filtroMpio, setFiltroMpio] = useState<string[]>([]);
   const [filtroAnio, setFiltroAnio] = useState<string[]>([]);
+  const [filtroAfiliada, setFiltroAfiliada] = useState<string[]>([]);
 
   const { data: registros = [], isLoading, error } = useQuery({
     queryKey: ["inversion-social"],
@@ -360,8 +363,9 @@ export default function InversionSocialPage() {
     if (filtroDpto.length > 0 && !filtroDpto.includes(r.Departamento)) return false;
     if (filtroMpio.length > 0 && !filtroMpio.includes(r.Municipio)) return false;
     if (filtroAnio.length > 0 && !filtroAnio.includes(r.Anio)) return false;
+    if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
     return true;
-  }), [registros, filtroOp, filtroDpto, filtroMpio, filtroAnio]);
+  }), [registros, filtroOp, filtroDpto, filtroMpio, filtroAnio, filtroAfiliada]);
 
   const kpis = useMemo(() => ({
     monto: filtrados.reduce((s,r)=>s+r.MontoInvertido,0),
@@ -441,7 +445,7 @@ export default function InversionSocialPage() {
     };
   }, [petroleo, gas, filtrados, registros]);
 
-  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMpio].filter(v => v.length > 0).length;
+  const filtrosActivos = [filtroAnio, filtroOp, filtroDpto, filtroMpio, filtroAfiliada].filter(v => v.length > 0).length;
 
   if (isLoading) return <Loading message="Cargando datos de inversión social..." />;
   if (error) return (
@@ -490,6 +494,7 @@ export default function InversionSocialPage() {
           {[
             { label: "Año", value: filtroAnio, icon: <Calendar size={14} />, onChange: setFiltroAnio, options: anios },
             { label: "Empresa", value: filtroOp, icon: <Building2 size={14} />, onChange: setFiltroOp, options: empresas },
+            { label: "Afiliada ACP", value: filtroAfiliada, icon: <Building2 size={14} />, onChange: setFiltroAfiliada, options: ["Sí", "No"] },
             { label: "Departamento", value: filtroDpto, icon: <MapPin size={14} />, onChange: setFiltroDpto, options: departamentos },
             { label: "Municipio", value: filtroMpio, icon: <Home size={14} />, onChange: setFiltroMpio, options: municipios },
           ].map(f => (
@@ -501,7 +506,7 @@ export default function InversionSocialPage() {
             </div>
           ))}
           <button 
-            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMpio([]); }} 
+            onClick={() => { setFiltroAnio([]); setFiltroOp([]); setFiltroDpto([]); setFiltroMpio([]); setFiltroAfiliada([]); }} 
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <RotateCcw size={14} /> Limpiar Filtros

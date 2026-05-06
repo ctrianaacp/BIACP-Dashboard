@@ -59,9 +59,21 @@ Para desplegar el frontend de forma consistente con MSAL y conectarse a la Base 
 
 ---
 
+## 🤖 EnergyBot (Asistente de Inteligencia Artificial)
+
+El proyecto cuenta con un asistente de IA integrado llamado **EnergyBot**, diseñado para analizar los datos del dashboard y responder preguntas de los analistas en tiempo real.
+
+1. **Frontend (Widget)**: El componente `/components/EnergyBotWidget.tsx` maneja la interfaz flotante (burbuja). Utiliza estado de React puro (sin hooks inestables) para controlar la entrada, el historial de mensajes y la lectura de *streaming* mediante `ReadableStream` y `TextDecoder`.
+2. **Contexto Activo**: Mediante `lib/chatStore.ts` (estado global con `useSyncExternalStore`), cualquier módulo del dashboard puede "inyectar" la data actual que está viendo el usuario para que el bot tenga contexto (ej. filtros activos).
+3. **Backend y RAG Ligero**: La ruta API `/app/api/chat/route.ts` recibe la petición. *Antes* de enviarla a OpenAI, ejecuta un motor de agregación (PostgreSQL) para armar un resumen de los Top 50 registros de las tablas de Empleo, Bienes/Servicios e Inversión Social. Este resumen se inyecta en el **System Prompt**, permitiéndole a GPT-4o-mini responder con cifras **exactas y reales** extraídas directamente de la base de datos de producción.
+
+---
+
 ## 📂 Estructura de Conocimiento
 
 - `AGENTS.md`: Este archivo.
 - `lib/normalizacion.ts`: Cerebro de transformación de datos.
+- `lib/chatStore.ts`: Estado global para el contexto de EnergyBot.
+- `app/api/chat/route.ts`: Motor backend de EnergyBot y consultas dinámicas a PostgreSQL.
 - `lib/graphClient.ts`: Motor de comunicación con SharePoint.
 - `app/dashboard/`: Vistas de indicadores.
