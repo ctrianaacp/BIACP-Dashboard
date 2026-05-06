@@ -819,7 +819,7 @@ export default function ProduccionPetroleoPage() {
                 series={operadoraContratos.series}
                 options={{
                   ...chartOpts.baseTheme,
-                  chart: { stacked: true, toolbar: { show: true } },
+                  chart: { stacked: true, toolbar: { show: true }, animations: { enabled: false } },
                   plotOptions: { 
                     bar: { 
                       horizontal: false, 
@@ -879,7 +879,7 @@ export default function ProduccionPetroleoPage() {
                 series={contratoOperadoras.series}
                 options={{
                   ...chartOpts.baseTheme,
-                  chart: { stacked: true, toolbar: { show: true } },
+                  chart: { stacked: true, toolbar: { show: true }, animations: { enabled: false } },
                   plotOptions: { 
                     bar: { 
                       horizontal: false, 
