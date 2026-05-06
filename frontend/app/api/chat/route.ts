@@ -14,26 +14,28 @@ async function buildDatabaseContext(): Promise<string> {
   try {
     // 1. Producción Petróleo (Crudo) - Total por Año y Departamento
     const petroleo = await query(`
-      SELECT SUBSTRING(hp.fecha, 1, 4) as anio, hp.departamento_raw as departamento,
+      SELECT EXTRACT(YEAR FROM hp.fecha) as anio, hp.departamento_raw as departamento,
              (CASE WHEN de.afiliada_acp = true THEN 'Sí' ELSE 'No' END) as afiliada_acp,
              AVG(hp.produccion_bpd) as bpd_promedio, COUNT(*) as registros
       FROM hecho_produccion hp
       LEFT JOIN dim_empresas de ON hp.empresa_id = de.id
       WHERE hp.fecha IS NOT NULL
-      GROUP BY SUBSTRING(hp.fecha, 1, 4), hp.departamento_raw, de.afiliada_acp
+      GROUP BY EXTRACT(YEAR FROM hp.fecha), hp.departamento_raw, de.afiliada_acp
       ORDER BY anio DESC, bpd_promedio DESC
+      LIMIT 50
     `);
 
     // 1b. Producción Gas - Total por Año y Departamento
     const gas = await query(`
-      SELECT SUBSTRING(hg.fecha, 1, 4) as anio, hg.departamento_raw as departamento,
+      SELECT EXTRACT(YEAR FROM hg.fecha) as anio, hg.departamento_raw as departamento,
              (CASE WHEN de.afiliada_acp = true THEN 'Sí' ELSE 'No' END) as afiliada_acp,
              AVG(hg.produccion_mpcd) as mpcd_promedio, COUNT(*) as registros
       FROM hecho_produccion_gas hg
       LEFT JOIN dim_empresas de ON hg.empresa_id = de.id
       WHERE hg.fecha IS NOT NULL
-      GROUP BY SUBSTRING(hg.fecha, 1, 4), hg.departamento_raw, de.afiliada_acp
+      GROUP BY EXTRACT(YEAR FROM hg.fecha), hg.departamento_raw, de.afiliada_acp
       ORDER BY anio DESC, mpcd_promedio DESC
+      LIMIT 50
     `);
 
     // 1c. Producción / Bienes y Servicios - Total por Año y Departamento
@@ -45,6 +47,7 @@ async function buildDatabaseContext(): Promise<string> {
       LEFT JOIN dim_empresas de ON hb.empresa_id = de.id
       GROUP BY hb.anio, hb.departamento_raw, de.afiliada_acp
       ORDER BY hb.anio DESC, total_cop DESC
+      LIMIT 50
     `);
 
     // 2. Empleo - Total por Año y Departamento
@@ -56,6 +59,7 @@ async function buildDatabaseContext(): Promise<string> {
       LEFT JOIN dim_empresas de ON he.empresa_id = de.id
       GROUP BY he.anio, he.departamento_raw, de.afiliada_acp
       ORDER BY he.anio DESC, total_empleos DESC
+      LIMIT 50
     `);
 
     // 3. Inversión Social - Total por Año y Departamento
@@ -68,6 +72,7 @@ async function buildDatabaseContext(): Promise<string> {
       LEFT JOIN dim_empresas de ON hi.empresa_id = de.id
       GROUP BY hi.anio, hi.departamento_raw, de.afiliada_acp
       ORDER BY hi.anio DESC, total_cop DESC
+      LIMIT 50
     `);
 
     // 4. Bloqueos - Resumen histórico completo por Año, Depto y Tipo
@@ -80,6 +85,7 @@ async function buildDatabaseContext(): Promise<string> {
       WHERE hb.fecha_inicio IS NOT NULL
       GROUP BY EXTRACT(YEAR FROM hb.fecha_inicio), hb.departamento_raw, hb.tipo_evento, de.afiliada_acp
       ORDER BY anio DESC, cantidad DESC
+      LIMIT 50
     `);
 
     // 5. Ranking Histórico de Operadoras (Top 20 global)
@@ -111,8 +117,8 @@ async function buildDatabaseContext(): Promise<string> {
     `);
 
     // 5. Años disponibles
-    const anios_petroleo = await query(`SELECT DISTINCT SUBSTRING(fecha, 1, 4) as anio FROM hecho_produccion WHERE fecha IS NOT NULL ORDER BY anio`);
-    const anios_gas = await query(`SELECT DISTINCT SUBSTRING(fecha, 1, 4) as anio FROM hecho_produccion_gas WHERE fecha IS NOT NULL ORDER BY anio`);
+    const anios_petroleo = await query(`SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio FROM hecho_produccion WHERE fecha IS NOT NULL ORDER BY anio`);
+    const anios_gas = await query(`SELECT DISTINCT EXTRACT(YEAR FROM fecha) as anio FROM hecho_produccion_gas WHERE fecha IS NOT NULL ORDER BY anio`);
     const anios_bys = await query(`SELECT DISTINCT anio FROM hecho_bienes_servicios ORDER BY anio`);
     const anios_emp = await query(`SELECT DISTINCT anio FROM hecho_empleo ORDER BY anio`);
     const anios_inv = await query(`SELECT DISTINCT anio FROM hecho_inversion_social ORDER BY anio`);
@@ -217,44 +223,9 @@ Reglas de respuesta:
       messages: formattedMessages,
       temperature: 0.2,
       // maxSteps: 3,
-      tools: {
-        consultar_municipio: tool({
-          description: 'Consulta datos específicos (Producción Petróleo, Producción Gas, Empleo, Bienes y Servicios, Inversión Social, Bloqueos) para un MUNICIPIO específico. Úsalo SIEMPRE que el usuario mencione una ciudad o municipio.',
-          parameters: z.object({
-            municipio: z.string().describe('El nombre del municipio a consultar (ej: Puerto Gaitán, Barrancabermeja, Acacías)'),
-            anio: z.string().optional().describe('El año a consultar (ej: 2024). Si no se especifica, traerá el resumen de todos los años.'),
-          }),
-          // @ts-ignore - Evitar error de tipos en versiones desalineadas del Vercel AI SDK
-          execute: async ({ municipio, anio }) => {
-            try {
-              const params = anio ? [`%${municipio}%`, anio] : [`%${municipio}%`];
-              const filter_anio = anio ? `AND anio = $2` : ``;
-              const filter_anio_bloq = anio ? `AND EXTRACT(YEAR FROM fecha_inicio) = $2` : ``;
-              const filter_anio_prod = anio ? `AND SUBSTRING(fecha, 1, 4) = $2` : ``;
-
-              const petroleo = await query(`SELECT AVG(produccion_bpd) as bpd_promedio, COUNT(*) as registros FROM hecho_produccion WHERE municipio_raw ILIKE $1 ${filter_anio_prod}`, params);
-              const gas = await query(`SELECT AVG(produccion_mpcd) as mpcd_promedio, COUNT(*) as registros FROM hecho_produccion_gas WHERE municipio_raw ILIKE $1 ${filter_anio_prod}`, params);
-              const empleo = await query(`SELECT SUM(num_empleos) as total_empleos, COUNT(*) as registros FROM hecho_empleo WHERE municipio_raw ILIKE $1 ${filter_anio}`, params);
-              const bys = await query(`SELECT SUM(valor_cop) as total_inversion, COUNT(*) as registros FROM hecho_bienes_servicios WHERE municipio_raw ILIKE $1 ${filter_anio}`, params);
-              const inv = await query(`SELECT SUM(valor_cop) as total_inversion, SUM(num_beneficiarios) as total_beneficiarios, COUNT(*) as proyectos FROM hecho_inversion_social WHERE municipio_raw ILIKE $1 ${filter_anio}`, params);
-              const bloq = await query(`SELECT COUNT(*) as cantidad_eventos FROM hecho_bloqueos WHERE municipio_raw ILIKE $1 ${filter_anio_bloq}`, params);
-
-              return {
-                municipio,
-                anio_consultado: anio || 'Todos los años',
-                produccion_petroleo_bpd_promedio: petroleo.rows[0].bpd_promedio ? Math.round(Number(petroleo.rows[0].bpd_promedio)) : 0,
-                produccion_gas_mpcd_promedio: gas.rows[0].mpcd_promedio ? Math.round(Number(gas.rows[0].mpcd_promedio)) : 0,
-                empleo: empleo.rows[0],
-                bienes_y_servicios: bys.rows[0],
-                inversion_social: inv.rows[0],
-                bloqueos: bloq.rows[0]
-              };
-            } catch (err) {
-              return { error: "No se pudo consultar el municipio en la base de datos." };
-            }
-          }
-        })
-      }
+      // tools: {
+      //   consultar_municipio: tool({ ... })
+      // }
     });
 
     return result.toTextStreamResponse();
