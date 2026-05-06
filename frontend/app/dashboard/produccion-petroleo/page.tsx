@@ -135,6 +135,21 @@ async function cargarPetroleo(): Promise<RegistroPetroleo[]> {
   }));
 }
 
+// ─── Loader de producción distribuida por participación (dim_contratos) ────────
+async function cargarPetroleoContratos(): Promise<RegistroPetroleo[]> {
+  const res = await fetch("/api/produccion-contratos");
+  if (!res.ok) throw new Error("Error cargando datos de producción distribuida");
+  const data = await res.json();
+  return data.map((r: any) => ({
+    ...r,
+    Departamento: normalizarDepartamento(r.Departamento || ""),
+    Municipio: normalizarMunicipio(r.Municipio || ""),
+    Operadora: r.Operadora || "",
+    MunicipioDepartamento: `${normalizarMunicipio(r.Municipio || "")} / ${normalizarDepartamento(r.Departamento || "")}`,
+    Produccion: Number(r.Produccion) || 0
+  }));
+}
+
 // ─── Componente KPI ───────────────────────────────────────────────────────────
 function KPICard({ label, value, unit, color, icon: Icon }: {
   label: string; value: string; unit?: string; color: string; icon: any;
@@ -187,12 +202,21 @@ export default function ProduccionPetroleoPage() {
     setFiltroContratos([]); setFiltroAfiliada([]);
   };
 
-  // Carga de datos
+  // Carga de datos generales
   const { data: registros = [], isLoading, error } = useQuery({
     queryKey: ["produccion-petroleo-pg"],
     queryFn: cargarPetroleo,
     staleTime: 10 * 60 * 1000,
     retry: 0,
+  });
+
+  // Carga de datos distribuidos por participación (solo para pestaña contratos)
+  const { data: registrosContratos = [] } = useQuery({
+    queryKey: ["produccion-petroleo-contratos"],
+    queryFn: cargarPetroleoContratos,
+    staleTime: 10 * 60 * 1000,
+    retry: 0,
+    enabled: activeTab === 'contratos' || registros.length > 0,
   });
 
   // ── Opciones de filtros en cascada: cada select muestra solo los valores
@@ -338,11 +362,29 @@ export default function ProduccionPetroleoPage() {
       .slice(0, 8);
   }, [filtrados]);
 
-  // --- NUEVA DATA PARA LA PESTAÑA CONTRATOS ---
-  // Top operadoras con desglose de contratos
+  // --- DATA DISTRIBUIDA PARA LA PESTAÑA CONTRATOS (usa producción × participación) ---
+  // Filtrar los registros distribuidos con los mismos filtros activos
+  const filtradosContratos = useMemo(() => {
+    return registrosContratos.filter((r) => {
+      if (filtroAnios.length > 0 && !filtroAnios.some(a => r.Fecha.startsWith(a))) return false;
+      if (filtroMeses.length > 0) {
+        const numsMeses = filtroMeses.map(m => MESES.indexOf(m));
+        if (!numsMeses.includes(parseInt(r.Fecha.substring(5, 7)))) return false;
+      }
+      if (filtroDptos.length > 0 && !filtroDptos.includes(r.Departamento)) return false;
+      if (filtroMunicipios.length > 0 && !filtroMunicipios.includes(r.Municipio)) return false;
+      if (filtroOperadoras.length > 0 && !filtroOperadoras.includes(r.Operadora)) return false;
+      if (filtroCampos.length > 0 && !filtroCampos.includes(r.Campo)) return false;
+      if (filtroContratos.length > 0 && !filtroContratos.includes(r.Contrato || 'Sin Contrato')) return false;
+      if (filtroAfiliada.length > 0 && !filtroAfiliada.includes(r.AfiliadaACP)) return false;
+      return true;
+    });
+  }, [registrosContratos, filtroAnios, filtroMeses, filtroDptos, filtroMunicipios, filtroOperadoras, filtroCampos, filtroContratos, filtroAfiliada]);
+
+  // Top operadoras con desglose de contratos (usando datos DISTRIBUIDOS)
   const operadoraContratos = useMemo(() => {
-    const acc: Record<string, Record<string, typeof filtrados>> = {};
-    filtrados.forEach((r) => {
+    const acc: Record<string, Record<string, typeof filtradosContratos>> = {};
+    filtradosContratos.forEach((r) => {
       if (!acc[r.Operadora]) acc[r.Operadora] = {};
       const contratoStr = r.Contrato || 'Sin Contrato';
       if (!acc[r.Operadora][contratoStr]) acc[r.Operadora][contratoStr] = [];
@@ -360,7 +402,6 @@ export default function ProduccionPetroleoPage() {
       return { op, total, bpcdPorContrato };
     });
 
-    // Tomamos las top 15 operadoras
     const topOps = operadorasTotal.sort((a, b) => b.total - a.total).slice(0, 15);
     const todosLosContratos = new Set<string>();
     topOps.forEach(op => {
@@ -368,21 +409,19 @@ export default function ProduccionPetroleoPage() {
     });
     const contratosUnicos = Array.from(todosLosContratos);
 
-    const series = contratosUnicos.map(contrato => {
-      return {
-        name: contrato,
-        data: topOps.map(op => Math.round(op.bpcdPorContrato[contrato] || 0))
-      };
-    });
+    const series = contratosUnicos.map(contrato => ({
+      name: contrato,
+      data: topOps.map(op => Math.round(op.bpcdPorContrato[contrato] || 0))
+    }));
 
     const seriesLimpias = series.filter(s => s.data.some(v => v > 0));
     return { categories: topOps.map(o => o.op), series: seriesLimpias };
-  }, [filtrados]);
+  }, [filtradosContratos]);
 
-  // Treemap general de contratos
+  // Treemap general de contratos (datos distribuidos)
   const contratosTree = useMemo(() => {
-    const acc: Record<string, typeof filtrados> = {};
-    filtrados.forEach((r) => {
+    const acc: Record<string, typeof filtradosContratos> = {};
+    filtradosContratos.forEach((r) => {
       const k = r.Contrato || 'Sin Contrato';
       if (!acc[k]) acc[k] = [];
       acc[k].push(r);
@@ -390,13 +429,13 @@ export default function ProduccionPetroleoPage() {
     return Object.entries(acc)
       .map(([n, regs]) => ({ x: n, y: Math.round(calcularBPDC(regs)) }))
       .sort((a, b) => b.y - a.y)
-      .slice(0, 30); // Top 30
-  }, [filtrados]);
+      .slice(0, 30);
+  }, [filtradosContratos]);
 
-  // Top contratos con desglose de operadoras (para ver contratos compartidos)
+  // Top contratos con desglose de operadoras (datos distribuidos)
   const contratoOperadoras = useMemo(() => {
-    const acc: Record<string, Record<string, typeof filtrados>> = {};
-    filtrados.forEach((r) => {
+    const acc: Record<string, Record<string, typeof filtradosContratos>> = {};
+    filtradosContratos.forEach((r) => {
       const contratoStr = r.Contrato || 'Sin Contrato';
       if (!acc[contratoStr]) acc[contratoStr] = {};
       if (!acc[contratoStr][r.Operadora]) acc[contratoStr][r.Operadora] = [];
@@ -414,7 +453,6 @@ export default function ProduccionPetroleoPage() {
       return { c, total, bpcdPorOperadora };
     });
 
-    // Tomamos los top 15 contratos
     const topContratos = contratosTotal.sort((a, b) => b.total - a.total).slice(0, 15);
     const todasLasOperadoras = new Set<string>();
     topContratos.forEach(contrato => {
@@ -422,21 +460,19 @@ export default function ProduccionPetroleoPage() {
     });
     const operadorasUnicas = Array.from(todasLasOperadoras);
 
-    const series = operadorasUnicas.map(op => {
-      return {
-        name: op,
-        data: topContratos.map(c => Math.round(c.bpcdPorOperadora[op] || 0))
-      };
-    });
+    const series = operadorasUnicas.map(op => ({
+      name: op,
+      data: topContratos.map(c => Math.round(c.bpcdPorOperadora[op] || 0))
+    }));
 
     const seriesLimpias = series.filter(s => s.data.some(v => v > 0));
     return { categories: topContratos.map(c => c.c), series: seriesLimpias };
-  }, [filtrados]);
+  }, [filtradosContratos]);
 
-  // KPIs específicos para la pestaña de contratos
+  // KPIs específicos para la pestaña de contratos (datos distribuidos)
   const kpisContratos = useMemo(() => {
     const acc: Record<string, Set<string>> = {};
-    filtrados.forEach((r) => {
+    filtradosContratos.forEach((r) => {
       const c = r.Contrato || 'Sin Contrato';
       if (!acc[c]) acc[c] = new Set();
       acc[c].add(r.Operadora);
@@ -445,10 +481,11 @@ export default function ProduccionPetroleoPage() {
     const totalContratos = Object.keys(acc).length;
     const contratosCompartidos = Object.values(acc).filter(ops => ops.size > 1).length;
     const top = contratosTree.length > 0 ? contratosTree[0] : { x: '-', y: 0 };
-    const avgBPDC = totalContratos > 0 ? kpis.bpdc / totalContratos : 0;
+    const bpdcContratos = calcularBPDC(filtradosContratos);
+    const avgBPDC = totalContratos > 0 ? bpdcContratos / totalContratos : 0;
 
     return { totalContratos, contratosCompartidos, topContrato: top.x, topContratoBPDC: top.y, avgBPDC };
-  }, [filtrados, contratosTree, kpis.bpdc]);
+  }, [filtradosContratos, contratosTree]);
 
   // ─── Opciones de gráficos ──────────────────────────────────────────────────
   const chartOpts = {
