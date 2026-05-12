@@ -64,7 +64,7 @@ export default function ExportButton({ targetId, fileName }: ExportButtonProps) 
 
       // Cargar y dibujar el logo de BI ACP
       const logo = new Image();
-      logo.crossOrigin = "Anonymous";
+      // logo.crossOrigin = "Anonymous"; // Se remueve para evitar fallos de CORS en localhost
       logo.src = '/images/logo-biacp.png';
       
       await new Promise((resolve) => {
@@ -73,7 +73,6 @@ export default function ExportButton({ targetId, fileName }: ExportButtonProps) 
       });
 
       // Calcular posición del logo (esquina inferior derecha)
-      // Ajustamos el tamaño del logo para que no se vea ni muy grande ni muy pequeño
       const logoHeight = 80; 
       const logoWidth = (logo.width / logo.height) * logoHeight;
       const logoX = finalCanvas.width - paddingX - logoWidth;
@@ -110,21 +109,22 @@ export default function ExportButton({ targetId, fileName }: ExportButtonProps) 
       disabled={isExporting}
       title="Exportar Gráfico"
       style={{
-        background: 'transparent',
+        background: 'none',
         border: 'none',
-        color: 'var(--color-primary)',
         cursor: 'pointer',
+        color: '#E05A12', // Naranja
+        padding: '4px',
         display: 'flex',
         alignItems: 'center',
-        padding: '4px',
+        justifyContent: 'center',
         transition: 'transform 0.2s',
         opacity: isExporting ? 0.5 : 1,
         borderRadius: '4px',
       }}
-      onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.background = 'var(--color-primary-bg)'; }}
-      onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'transparent'; }}
+      onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.background = 'rgba(224, 90, 18, 0.1)'; }}
+      onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'none'; }}
     >
-      {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+      {isExporting ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} strokeWidth={2.5} />}
     </button>
   );
 }

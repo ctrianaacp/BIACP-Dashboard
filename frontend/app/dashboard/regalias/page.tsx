@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { 
   DollarSign, 
@@ -11,37 +11,45 @@ import {
   X, 
   RotateCcw, 
   Map, 
-  ClipboardList 
+  ClipboardList,
+  Calendar
 } from "lucide-react";
 import Loading from "@/components/Loading";
 import ExportButton from "@/components/ExportButton";
 import MultiSelect from "@/components/MultiSelect";
 import DataTable from "@/components/DataTable";
+import PBCLineCharts from "@/components/regalias/PBCLineCharts";
+import PBCBarCharts from "@/components/regalias/PBCBarCharts";
+import RecaudoAvanceCharts from "@/components/regalias/RecaudoAvanceCharts";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-interface FilaSGR {
+// ─── Tipos SICODIS ─────────────────────────────────────────────────────────────
+interface FilaSicodis {
   departamento: string;
   region: string;
-  seccion: string;
   entidad: string;
-  proyecto: string;
-  fuente: string;
+  proyecto: string; // concepto
+  municipio: string;
+  presupuesto_total: string | number;
+  presupuesto_corriente: string | number;
+  rendimientos_financieros: string | number;
+  recaudo_total: string | number;
+  recaudo_corriente: string | number;
+  avance_recaudo_total: string | number;
+}
+
+interface HistoricoItem {
   vigencia: string;
-  apropiacion_inicial: number;
-  apropiacion_definitiva: number;
-  compromisos: number;
-  obligaciones: number;
-  pagos: number;
+  presupuesto_total: string | number;
 }
 
 interface ApiResponse {
-  registros: FilaSGR[];
+  registros: FilaSicodis[];
+  historico: HistoricoItem[];
+  vigencias: string[];
+  vigencia_activa: string;
   total: number;
-  columnas_originales: string[];
-  fuente: string;
-  vigencia_archivo: string;
   error?: string;
 }
 
@@ -51,6 +59,12 @@ function fmtCOP(v: number): string {
   if (v >= 1_000_000_000)     return `$${(v / 1_000_000_000).toFixed(1)}MM`;
   if (v >= 1_000_000)         return `$${(v / 1_000_000).toFixed(0)}M`;
   return `$${Math.round(v).toLocaleString("es-CO")}`;
+}
+
+function parseNum(val: string | number): number {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return Number(val) || 0;
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -67,65 +81,71 @@ function KPICard({ label, value, color, icon: Icon, sub }: {
   );
 }
 
-// ─── Fetch MinHacienda ────────────────────────────────────────────────────────
-async function cargarSGR(): Promise<ApiResponse> {
-  const res = await fetch("/api/sgr-minhacienda");
+// ─── Fetch Postgres ───────────────────────────────────────────────────────────
+async function cargarSGR(vigencia: string): Promise<ApiResponse> {
+  const params = new URLSearchParams();
+  if (vigencia) params.append("vigencia", vigencia);
+  const res = await fetch(`/api/regalias-sicodis?${params.toString()}`);
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || `Error ${res.status} consultando SGR MinHacienda`);
+    throw new Error(`Error ${res.status} consultando base de datos SICODIS`);
   }
   return res.json();
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function RegaliasPage() {
+  const [vigencia, setVigencia] = useState("2025 - 2026");
+  const [pbcData, setPbcData] = useState<any>(null);
   const [filtroRegion, setFiltroRegion]   = useState<string[]>([]);
-  const [filtroSeccion, setFiltroSeccion] = useState<string[]>([]);
+  const [filtroDepto, setFiltroDepto] = useState<string[]>([]);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  const filtrosActivos = [filtroRegion, filtroSeccion].filter(v => v.length > 0).length;
+  const filtrosActivos = [filtroRegion, filtroDepto].filter(v => v.length > 0).length;
 
   const { data: apiData, isLoading, error } = useQuery({
-    queryKey: ["sgr-minhacienda-v1"],
-    queryFn: cargarSGR,
+    queryKey: ["regalias-sicodis", vigencia],
+    queryFn: () => cargarSGR(vigencia),
     staleTime: 4 * 60 * 60 * 1000, // 4h
-    retry: 2,
+    retry: 1,
   });
 
+  // Fetch PBC Data
+  useEffect(() => {
+    fetch(`/api/regalias-pbc?vigencia=${encodeURIComponent(vigencia)}`)
+      .then(res => res.json())
+      .then(data => setPbcData(data))
+      .catch(console.error);
+  }, [vigencia]);
+
   const registros = apiData?.registros ?? [];
+  const historico = apiData?.historico ?? [];
+  const vigenciasDisponibles = apiData?.vigencias ?? ["2025 - 2026"];
 
   // ── Opciones de filtros ──
   const regiones  = useMemo(() => Array.from(new Set(registros.map(r => r.region).filter(v => v && v !== "N/A"))).sort(), [registros]);
-  const secciones = useMemo(() => Array.from(new Set(registros.map(r => r.seccion).filter(v => v && v !== "N/A"))).sort(), [registros]);
+  const departamentos = useMemo(() => Array.from(new Set(registros.map(r => r.departamento).filter(v => v && v !== "N/A"))).sort(), [registros]);
 
   // ── Filtros aplicados ──
   const filtrados = useMemo(() => registros.filter(r => {
     if (filtroRegion.length > 0 && !filtroRegion.includes(r.region)) return false;
-    if (filtroSeccion.length > 0 && !filtroSeccion.includes(r.seccion)) return false;
+    if (filtroDepto.length > 0 && !filtroDepto.includes(r.departamento)) return false;
     return true;
-  }), [registros, filtroRegion, filtroSeccion]);
+  }), [registros, filtroRegion, filtroDepto]);
 
   // ── KPIs ──
   const kpis = useMemo(() => {
-    const ini = filtrados.reduce((s, r) => s + r.apropiacion_inicial, 0);
-    const def = filtrados.reduce((s, r) => s + r.apropiacion_definitiva, 0);
-    const com = filtrados.reduce((s, r) => s + r.compromisos, 0);
-    const obl = filtrados.reduce((s, r) => s + r.obligaciones, 0);
-    const pag = filtrados.reduce((s, r) => s + r.pagos, 0);
-    const var_ = ini > 0 ? ((def - ini) / ini) * 100 : 0;
-    const ejec = def > 0 ? (com / def) * 100 : 0;
-    return { ini, def, com, obl, pag, var_, ejec };
+    // El presupuesto oficial es Corriente + Rendimientos
+    const pOficial = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_corriente) + parseNum(r.rendimientos_financieros), 0);
+    const pCorriente = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_corriente), 0);
+    const rCorriente = filtrados.reduce((s, r) => s + parseNum(r.recaudo_corriente), 0);
+    const rTotal = filtrados.reduce((s, r) => s + parseNum(r.recaudo_total), 0);
+    const avance = pOficial > 0 ? (rTotal / pOficial) * 100 : 0;
+    return { pOficial, pCorriente, rTotal, rCorriente, avance };
   }, [filtrados]);
 
   const porConcepto = useMemo(() => {
     const acc: Record<string, number> = {};
-    filtrados.forEach(r => { if (r.proyecto && r.proyecto !== "N/A") acc[r.proyecto] = (acc[r.proyecto] ?? 0) + r.apropiacion_definitiva; });
-    return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 10);
-  }, [filtrados]);
-
-  const topEntidades = useMemo(() => {
-    const acc: Record<string, number> = {};
-    filtrados.forEach(r => { if (r.entidad && r.entidad !== "N/A") acc[r.entidad] = (acc[r.entidad] ?? 0) + r.apropiacion_definitiva; });
+    filtrados.forEach(r => { if (r.proyecto) acc[r.proyecto] = (acc[r.proyecto] ?? 0) + parseNum(r.presupuesto_total); });
     return Object.entries(acc).sort(([, a], [, b]) => b - a).slice(0, 10);
   }, [filtrados]);
 
@@ -135,7 +155,7 @@ export default function RegaliasPage() {
     grid: { borderColor: "var(--color-border)" },
   };
 
-  if (isLoading) return <Loading message="Descargando datos del Sistema General de Regalías (MinHacienda)..." />;
+  if (isLoading && !apiData) return <Loading message="Conectando a base de datos analítica SICODIS..." />;
 
   if (error || apiData?.error) return (
     <div className="page-content">
@@ -150,7 +170,7 @@ export default function RegaliasPage() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
             <RotateCcw size={40} style={{ color: "var(--color-danger)" }} />
           </div>
-          <div style={{ color: "var(--color-danger)", fontWeight: 800 }}>Error al consultar SGR</div>
+          <div style={{ color: "var(--color-danger)", fontWeight: 800 }}>Error al consultar Base de Datos</div>
           <div style={{ color: "var(--color-text-muted)", marginTop: 8 }}>{apiData?.error ?? String(error)}</div>
         </div>
       </div>
@@ -178,9 +198,25 @@ export default function RegaliasPage() {
       <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 320, background: "#fff", zIndex: 1001, padding: "24px", transform: filtrosAbiertos ? "translateX(0)" : "translateX(100%)", transition: "transform 0.3s", boxShadow: "-8px 0 30px rgba(0,0,0,0.15)", overflowY: "auto" }}>
         <h3 style={{ marginBottom: 24, fontSize: '1.2rem', fontWeight: 900, color: 'var(--color-secondary)' }}>Filtros</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          
+          <div>
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <Calendar size={14} /> Vigencia (Bienio)
+            </label>
+            <select 
+              value={vigencia} 
+              onChange={e => setVigencia(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 600, color: 'var(--color-primary)' }}
+            >
+              {vigenciasDisponibles.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+
           {[
             { label: "Región", value: filtroRegion, icon: <Map size={14} />, onChange: setFiltroRegion, options: regiones },
-            { label: "Sección", value: filtroSeccion, icon: <ClipboardList size={14} />, onChange: setFiltroSeccion, options: secciones },
+            { label: "Departamento", value: filtroDepto, icon: <ClipboardList size={14} />, onChange: setFiltroDepto, options: departamentos },
           ].map(f => (
             <div key={f.label}>
               <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -190,7 +226,7 @@ export default function RegaliasPage() {
             </div>
           ))}
           <button 
-            onClick={() => { setFiltroRegion([]); setFiltroSeccion([]); }} 
+            onClick={() => { setFiltroRegion([]); setFiltroDepto([]); }} 
             style={{ padding: 12, background: "var(--color-bg-elevated)", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, marginTop: 12, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <RotateCcw size={14} /> Limpiar Filtros
@@ -199,34 +235,88 @@ export default function RegaliasPage() {
       </div>
 
       <div className="page-header">
-        <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Regalías (SGR)</h1>
+        <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Regalías (SGR) - SICODIS</h1>
         <p>
-          Presupuesto Bienio 2025-2026 · {filtrados.length.toLocaleString("es-CO")} registros
+          Presupuesto vs Recaudo · Bienio {vigencia} · {filtrados.length.toLocaleString("es-CO")} registros
           {filtrosActivos > 0 && <span style={{ marginLeft: 12, background: 'var(--color-primary)', color: '#fff', padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>{filtrosActivos} activos</span>}
         </p>
       </div>
 
       <div className="kpi-grid">
-        <KPICard label="Aprop. Definitiva" value={fmtCOP(kpis.def)} color="primary" icon={DollarSign} sub={`Inicial: ${fmtCOP(kpis.ini)}`} />
-        <KPICard label="Ejecución (Compromisos)" value={`${kpis.ejec.toFixed(1)}%`} color={kpis.ejec >= 50 ? "success" : "warning"} icon={BarChart3} sub={`Comprometido: ${fmtCOP(kpis.com)}`} />
-        <KPICard label="Pagos Realizados" value={fmtCOP(kpis.pag)} color="info" icon={Banknote} sub={`Total Entidades: ${totalEntidades}`} />
-        <KPICard label="Variación Presupuesto" value={`${kpis.var_ >= 0 ? "+" : ""}${kpis.var_.toFixed(1)}%`} color={kpis.var_ >= 0 ? "success" : "danger"} icon={TrendingUp} sub="Definitiva vs Inicial" />
+        <KPICard label="Presupuesto Oficial (SGR)" value={fmtCOP(kpis.pOficial)} color="primary" icon={DollarSign} sub={`Entidades: ${totalEntidades}`} />
+        <KPICard label="Recaudo Total" value={fmtCOP(kpis.rTotal)} color="info" icon={Banknote} sub="Recursos efectivamente ingresados" />
+        <KPICard label="Avance de Recaudo" value={`${kpis.avance.toFixed(1)}%`} color={kpis.avance >= 50 ? "success" : "warning"} icon={BarChart3} sub="Recaudo vs Presupuesto Total" />
+        <KPICard label="Presupuesto Corriente" value={fmtCOP(kpis.pCorriente)} color="default" icon={TrendingUp} sub="Presupuesto sin recursos del balance" />
       </div>
 
+      <RecaudoAvanceCharts 
+        presupuestoTotal={kpis.pOficial}
+        recaudoTotal={kpis.rTotal}
+        presupuestoCorriente={kpis.pCorriente}
+        recaudoCorriente={kpis.rCorriente}
+      />
+
+      {pbcData && (
+        <>
+          <PBCLineCharts data={pbcData} />
+          <PBCBarCharts data={pbcData} />
+        </>
+      )}
+
       <div className="charts-grid">
+        <div className="panel" id="panel-regalias-historico">
+          <div className="panel-header">
+            <span className="panel-title">Regalías presupuestadas por bienio (Billones COP)</span>
+            <ExportButton targetId="panel-regalias-historico" fileName="Regalias_Historico_Bienios" />
+          </div>
+          <div className="panel-body">
+            {typeof window !== "undefined" && historico.length > 0 && (
+              <Chart type="bar" height={380}
+                series={[{ 
+                  name: "Presupuesto (Billones COP)", 
+                  data: historico.map(h => Number((parseNum(h.presupuesto_total) / 1_000_000_000_000).toFixed(1)))
+                }]}
+                options={{
+                  ...chartBase,
+                  plotOptions: { 
+                    bar: { horizontal: false, borderRadius: 4, columnWidth: "55%", dataLabels: { position: 'top' } } 
+                  },
+                  xaxis: { 
+                    categories: historico.map(h => h.vigencia),
+                    labels: { style: { colors: "var(--color-text-muted)", fontWeight: 600 } } 
+                  },
+                  yaxis: {
+                    labels: { formatter: (v: number) => `$${v}B` }
+                  },
+                  colors: [({ dataPointIndex, w }: any) => {
+                    // Si es el último, color aqua claro, si no teal oscuro (como en la imagen del PDF)
+                    return dataPointIndex === w.config.series[0].data.length - 1 ? "#84e2c8" : "#009988";
+                  }],
+                  dataLabels: { 
+                    enabled: true, 
+                    offsetY: -20,
+                    style: { fontSize: "12px", fontWeight: 800, colors: ["#009988"] }, 
+                    formatter: (v: number) => `$ ${v.toLocaleString("es-CO")}` 
+                  }
+                }}
+              />
+            )}
+          </div>
+        </div>
+
         <div className="panel" id="panel-regalias-concepto">
           <div className="panel-header">
-            <span className="panel-title">Apropiación por Concepto</span>
-            <ExportButton targetId="panel-regalias-concepto" fileName="Apropiacion_Concepto" />
+            <span className="panel-title">Presupuesto Total por Concepto</span>
+            <ExportButton targetId="panel-regalias-concepto" fileName="Presupuesto_Concepto" />
           </div>
           <div className="panel-body">
             {typeof window !== "undefined" && porConcepto.length > 0 && (
               <Chart type="bar" height={380}
-                series={[{ name: "Aprop. Definitiva (MM)", data: porConcepto.map(([, v]) => Math.round(v / 1_000_000_000)) }]}
+                series={[{ name: "Presupuesto (MM)", data: porConcepto.map(([, v]) => Math.round(v / 1_000_000_000)) }]}
                 options={{
                   ...chartBase,
                   plotOptions: { 
-                    bar: { horizontal: true, borderRadius: 4, barHeight: "95%", dataLabels: { position: 'center' } } 
+                    bar: { horizontal: true, borderRadius: 4, barHeight: "80%", dataLabels: { position: 'center' } } 
                   },
                   xaxis: { categories: porConcepto.map(([k]) => k.length > 30 ? k.slice(0, 30) + "…" : k), labels: { style: { colors: "var(--color-text-muted)" } } },
                   colors: ["#D44D03"],
@@ -240,40 +330,11 @@ export default function RegaliasPage() {
             )}
           </div>
         </div>
-        <div className="panel" id="panel-regalias-cadena">
-          <div className="panel-header">
-            <span className="panel-title">Estado de la Cadena Presupuestal</span>
-            <ExportButton targetId="panel-regalias-cadena" fileName="Cadena_Presupuestal" />
-          </div>
-          <div className="panel-body">
-            {typeof window !== "undefined" && (
-              <Chart type="bar" height={380}
-                series={[{
-                  name: "Miles de millones COP",
-                  data: [
-                    Math.round(kpis.def / 1_000_000_000),
-                    Math.round(kpis.com / 1_000_000_000),
-                    Math.round(kpis.obl / 1_000_000_000),
-                    Math.round(kpis.pag / 1_000_000_000),
-                  ]
-                }]}
-                options={{
-                  ...chartBase,
-                  plotOptions: { bar: { distributed: true, borderRadius: 4, columnWidth: "80%" } },
-                  xaxis: { categories: ["Aprop. Definitiva", "Compromisos", "Obligaciones", "Pagos"], labels: { style: { colors: "var(--color-text-muted)" } } },
-                  colors: ["#D44D03", "#003745", "#008054", "#C68400"],
-                  dataLabels: { enabled: true, style: { fontSize: "11px", fontWeight: 700 }, formatter: (v: number) => `$${v.toLocaleString("es-CO")}MM` },
-                  legend: { show: false }
-                }}
-              />
-            )}
-          </div>
-        </div>
       </div>
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Detalle: Regalías (SGR)</span>
+          <span className="panel-title">Detalle: Presupuesto y Recaudo (SICODIS)</span>
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros detallados</span>
         </div>
         <DataTable
@@ -281,13 +342,12 @@ export default function RegaliasPage() {
           columns={[
             { key: "region", label: "Región", render: (v) => <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)" }}>{v}</span> },
             { key: "departamento", label: "Departamento", render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
-            { key: "entidad", label: "Entidad / Asignación" },
-            { key: "seccion", label: "Sección", render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
+            { key: "municipio", label: "Municipio" },
+            { key: "entidad", label: "Entidad", render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
             { key: "proyecto", label: "Concepto de Gasto", width: "200px", render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
-            { key: "fuente", label: "Fuente" },
-            { key: "apropiacion_definitiva", label: "Aprop. Definitiva", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(v)}</span> },
-            { key: "compromisos", label: "Compromisos", align: "right", render: (v) => fmtCOP(v) },
-            { key: "pagos", label: "Pagos", align: "right", render: (v) => fmtCOP(v) },
+            { key: "presupuesto_total", label: "Presupuesto", align: "right", render: (v) => <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtCOP(parseNum(v))}</span> },
+            { key: "recaudo_total", label: "Recaudo", align: "right", render: (v) => fmtCOP(parseNum(v)) },
+            { key: "avance_recaudo_total", label: "Avance %", align: "right", render: (v) => <span style={{ fontWeight: 600, color: parseNum(v) >= 0.5 ? 'var(--color-success)' : 'var(--color-warning)' }}>{(parseNum(v) * 100).toFixed(1)}%</span> },
           ]}
           pageSize={50}
         />
@@ -295,3 +355,4 @@ export default function RegaliasPage() {
     </div>
   );
 }
+

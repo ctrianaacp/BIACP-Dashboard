@@ -34,6 +34,8 @@ import {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "principal" },
   { href: "/dashboard/descubrimiento", label: "Descubrimiento Datos", icon: Search, section: "principal" },
+  { href: "/dashboard/contexto-internacional", label: "Contexto Internacional", icon: Globe, section: "contexto" },
+  { href: "/dashboard/contexto-nacional", label: "Contexto Nacional", icon: Map, section: "contexto" },
   { href: "/dashboard/produccion-petroleo", label: "Producción Petróleo", icon: Droplets, section: "producción" },
   { href: "/dashboard/produccion-gas", label: "Producción Gas", icon: Wind, section: "producción" },
   { href: "/dashboard/compensaciones", label: "Compensaciones Amb.", icon: Leaf, section: "ambiental" },
@@ -49,7 +51,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/consulta-previa", label: "Consulta Previa", icon: FileText, section: "social" },
 ];
 
-const SECTIONS = ["principal", "producción", "ambiental", "conflictividad", "regalías", "social"];
+const SECTIONS = ["principal", "contexto", "producción", "ambiental", "conflictividad", "regalías", "social"];
 
 const SUPERADMIN_EMAIL = "ctriana@acp.com.co";
 
