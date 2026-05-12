@@ -5,27 +5,21 @@ import dynamic from "next/dynamic";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function PBCLineCharts({ data }: { data: any }) {
-  const isDark = false;
   const textColor = "#475569";
 
-  const chartOptions = (title: string, colorLine: string) => ({
+  const buildOptions = (title: string, colorLine: string, categories: string[]) => ({
     chart: {
       type: "line",
       toolbar: { show: false },
       background: "transparent",
       animations: { enabled: true }
     },
-    title: {
-      text: title,
-      align: "center",
-      style: { color: textColor, fontSize: "16px", fontWeight: "600", fontFamily: "Inter, sans-serif" }
-    },
     stroke: { curve: "smooth", width: 3 },
-    colors: ["#f97316", colorLine], // Orange for PBC, specific color for Recaudo
-    markers: { size: 5, strokeWidth: 2, hover: { size: 7 } },
+    colors: ["#f97316", colorLine],
+    markers: { size: 4, strokeWidth: 2, hover: { size: 6 } },
     xaxis: {
-      categories: data?.mineria?.map((d: any) => d.mes) || [],
-      labels: { style: { colors: textColor, fontSize: "11px" }, rotate: -45 },
+      categories,
+      labels: { style: { colors: textColor, fontSize: "10px" }, rotate: -45, rotateAlways: true },
       axisBorder: { show: false },
       axisTicks: { show: false }
     },
@@ -35,28 +29,55 @@ export default function PBCLineCharts({ data }: { data: any }) {
         formatter: (val: number) => new Intl.NumberFormat('es-CO', { notation: "compact" }).format(val)
       }
     },
-    legend: { position: "bottom", labels: { colors: textColor } },
-    grid: { borderColor: isDark ? "#334155" : "#e2e8f0", strokeDashArray: 4 },
-    theme: { mode: isDark ? "dark" : "light" }
+    legend: { position: "bottom", labels: { colors: textColor }, fontSize: "12px" },
+    grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
+    tooltip: {
+      y: { formatter: (val: number) => `$${new Intl.NumberFormat('es-CO', { notation: "compact" }).format(val)}` }
+    }
   });
 
-  const seriesMineria = [
-    { name: "PBC", data: data?.mineria?.map((d: any) => d.pbc) || [] },
-    { name: "Recaudo", data: data?.mineria?.map((d: any) => d.recaudo) || [] }
-  ];
+  const mineriaData = data?.mineria || [];
+  const hidrocarburosData = data?.hidrocarburos || [];
 
-  const seriesHidrocarburos = [
-    { name: "PBC", data: data?.hidrocarburos?.map((d: any) => d.pbc) || [] },
-    { name: "Recaudo", data: data?.hidrocarburos?.map((d: any) => d.recaudo) || [] }
-  ];
+  if (mineriaData.length === 0 && hidrocarburosData.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <div className={`p-4 border rounded-xl shadow-md ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <Chart options={chartOptions("Recaudo Directas frente al PBC - Minería", "#3b82f6") as any} series={seriesMineria} type="line" height={350} />
+    <div className="charts-grid" style={{ marginTop: "24px" }}>
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Recaudo Directas frente al PBC - Minería</span>
+        </div>
+        <div className="panel-body">
+          {mineriaData.length > 0 && (
+            <Chart 
+              options={buildOptions("", "#3b82f6", mineriaData.map((d: any) => d.mes)) as any} 
+              series={[
+                { name: "PBC", data: mineriaData.map((d: any) => d.pbc) },
+                { name: "Recaudo", data: mineriaData.map((d: any) => d.recaudo) }
+              ]} 
+              type="line" 
+              height={350} 
+            />
+          )}
+        </div>
       </div>
-      <div className={`p-4 border rounded-xl shadow-md ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <Chart options={chartOptions("Recaudo Directas frente al PBC - Hidrocarburos", "#8b5cf6") as any} series={seriesHidrocarburos} type="line" height={350} />
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Recaudo Directas frente al PBC - Hidrocarburos</span>
+        </div>
+        <div className="panel-body">
+          {hidrocarburosData.length > 0 && (
+            <Chart 
+              options={buildOptions("", "#8b5cf6", hidrocarburosData.map((d: any) => d.mes)) as any} 
+              series={[
+                { name: "PBC", data: hidrocarburosData.map((d: any) => d.pbc) },
+                { name: "Recaudo", data: hidrocarburosData.map((d: any) => d.recaudo) }
+              ]} 
+              type="line" 
+              height={350} 
+            />
+          )}
+        </div>
       </div>
     </div>
   );

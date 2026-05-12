@@ -25,10 +25,14 @@ export async function GET(request: Request) {
 
     const res = await pool.query(pbcQuery, [vigencia]);
 
-    // Format data for frontend charts
-    // We want to group by sector
-    const data = res.rows.reduce((acc: any, row) => {
-      const sector = row.sector === 'Minería' ? 'mineria' : 'hidrocarburos';
+    // Format data for frontend charts — group by sector
+    const data = res.rows.reduce((acc: any, row: any) => {
+      let sector: string;
+      if (row.sector === 'Minería') sector = 'mineria';
+      else if (row.sector === 'Hidrocarburos') sector = 'hidrocarburos';
+      else if (row.sector === 'Total') sector = 'total';
+      else return acc; // skip unknown sectors
+
       if (!acc[sector]) acc[sector] = [];
       
       acc[sector].push({
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
         recaudo: Number(row.recaudo)
       });
       return acc;
-    }, { mineria: [], hidrocarburos: [] });
+    }, { mineria: [], hidrocarburos: [], total: [] });
 
     return NextResponse.json(data);
   } catch (error) {

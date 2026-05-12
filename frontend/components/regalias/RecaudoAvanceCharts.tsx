@@ -17,43 +17,48 @@ export default function RecaudoAvanceCharts({
   presupuestoCorriente,
   recaudoCorriente
 }: Props) {
-  const isDark = false;
   const textColor = "#475569";
 
-  // Cálculos para "Otros"
-  const presupuestoOtros = presupuestoTotal - presupuestoCorriente;
-  const recaudoOtros = recaudoTotal - recaudoCorriente;
+  // "Otros" = Todo lo que no es corriente (Disp. Inicial + Rendimientos + Adiciones, etc.)
+  const presupuestoOtros = Math.max(presupuestoTotal - presupuestoCorriente, 0);
+  const recaudoOtros = Math.max(recaudoTotal - recaudoCorriente, 0);
 
-  // Porcentajes de avance (evitando división por 0)
+  // Porcentajes de avance
+  const pctTotal = presupuestoTotal > 0 ? (recaudoTotal / presupuestoTotal) * 100 : 0;
   const pctCorriente = presupuestoCorriente > 0 ? (recaudoCorriente / presupuestoCorriente) * 100 : 0;
-  const pctOtros = presupuestoOtros > 0 ? (recaudoOtros / presupuestoOtros) * 100 : 0;
 
-  // Gráfico de Barras Agrupadas (Total, Corriente, Otros)
-  // La imagen 3 muestra Recaudo (azul claro) sobre Presupuesto (azul oscuro)
-  // Lo haremos como gráfico de barras superpuestas (no stacked, o stacked si uno es el remanente)
-  // ApexCharts "stacked: false" con 100% overlap? Mejor usar dos series normales.
+  // Formateador compacto
+  const fmtCompact = (val: number) => new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(val);
+
+  // Gráfico de Barras Agrupadas: Presupuesto vs Recaudo (Total, Corriente, Otros)
   const barOptions = {
     chart: { type: "bar", toolbar: { show: false }, background: "transparent" },
     plotOptions: {
-      bar: { horizontal: true, dataLabels: { position: "top" }, barHeight: "50%" }
+      bar: { horizontal: true, barHeight: "55%", borderRadius: 3 }
     },
-    dataLabels: { enabled: false },
+    dataLabels: { 
+      enabled: true,
+      formatter: (val: number) => fmtCompact(val),
+      style: { fontSize: "11px", fontWeight: 600 }
+    },
     stroke: { width: 1, colors: ["transparent"] },
-    colors: ["#60a5fa", "#1e3a8a"], // Azul claro para Recaudo, azul oscuro para Presupuesto
+    colors: ["#60a5fa", "#1e3a8a"],
     xaxis: {
       labels: {
         style: { colors: textColor },
-        formatter: (val: number) => new Intl.NumberFormat('es-CO', { notation: "compact" }).format(val)
+        formatter: (val: number) => fmtCompact(val)
       },
       axisBorder: { show: false },
       axisTicks: { show: false }
     },
     yaxis: {
-      labels: { style: { colors: textColor, fontSize: "14px", fontFamily: "Inter, sans-serif" } }
+      labels: { style: { colors: textColor, fontSize: "13px", fontFamily: "Inter, sans-serif", fontWeight: 700 } }
     },
-    legend: { position: "bottom", labels: { colors: textColor } },
-    grid: { borderColor: isDark ? "#334155" : "#e2e8f0", strokeDashArray: 4 },
-    theme: { mode: isDark ? "dark" : "light" }
+    legend: { position: "bottom", labels: { colors: textColor }, fontSize: "13px" },
+    grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
+    tooltip: {
+      y: { formatter: (val: number) => `$${fmtCompact(val)}` }
+    }
   };
 
   const barSeries = [
@@ -75,47 +80,60 @@ export default function RecaudoAvanceCharts({
     }
   ];
 
-  // Opciones para Gauge (Avance recaudo corriente)
-  const gaugeOptions = (color: string, label: string) => ({
+  // Gauge semicírculo
+  const gaugeOptions = (color: string) => ({
     chart: { type: "radialBar", background: "transparent", offsetY: -10 },
     plotOptions: {
       radialBar: {
         startAngle: -90,
         endAngle: 90,
         hollow: { size: "65%" },
-        track: { background: isDark ? "#334155" : "#e2e8f0", strokeWidth: "100%" },
+        track: { background: "#e2e8f0", strokeWidth: "100%" },
         dataLabels: {
           name: { show: false },
-          value: { offsetY: 0, fontSize: "24px", color: textColor, fontWeight: "bold", formatter: (val: number) => val.toFixed(2) + "%" }
+          value: { offsetY: 0, fontSize: "28px", color: textColor, fontWeight: "bold", formatter: (val: number) => val.toFixed(1) + "%" }
         }
       }
     },
     fill: { type: "solid", colors: [color] },
-    stroke: { lineCap: "flat" },
-    labels: [label],
-    theme: { mode: isDark ? "dark" : "light" }
+    stroke: { lineCap: "flat" }
   });
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
-      <div className={`p-4 border rounded-xl shadow-sm ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <Chart options={barOptions as any} series={barSeries} type="bar" height={250} />
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "24px" }}>
+      {/* Barras Presupuesto vs Recaudo */}
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Presupuesto vs Recaudo</span>
+        </div>
+        <div className="panel-body">
+          <Chart options={barOptions as any} series={barSeries} type="bar" height={250} />
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className={`p-4 border rounded-xl shadow-sm flex flex-col justify-center items-center ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <h3 className={`text-sm font-semibold mb-2 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Avance recaudo corriente</h3>
-          <Chart options={gaugeOptions("#3b82f6", "Corriente") as any} series={[Math.min(pctCorriente, 100)]} type="radialBar" height={250} />
-          <div className="text-xs text-slate-400 mt-[-40px] flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> Recaudo
+      {/* Gauges */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        <div className="panel" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div className="panel-header" style={{ width: "100%" }}>
+            <span className="panel-title" style={{ fontSize: "0.85rem" }}>Avance Recaudo Total</span>
+          </div>
+          <div className="panel-body" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <Chart options={gaugeOptions("#3b82f6") as any} series={[Math.min(pctTotal, 100)]} type="radialBar" height={240} />
+            <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "-36px" }}>
+              {fmtCompact(recaudoTotal)} / {fmtCompact(presupuestoTotal)}
+            </div>
           </div>
         </div>
         
-        <div className={`p-4 border rounded-xl shadow-sm flex flex-col justify-center items-center ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <h3 className={`text-sm font-semibold mb-2 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Avance recaudo otros</h3>
-          <Chart options={gaugeOptions("#10b981", "Otros") as any} series={[Math.min(pctOtros, 100)]} type="radialBar" height={250} />
-          <div className="text-xs text-slate-400 mt-[-40px] flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Recaudo
+        <div className="panel" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div className="panel-header" style={{ width: "100%" }}>
+            <span className="panel-title" style={{ fontSize: "0.85rem" }}>Avance Recaudo Corriente</span>
+          </div>
+          <div className="panel-body" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <Chart options={gaugeOptions("#10b981") as any} series={[Math.min(pctCorriente, 100)]} type="radialBar" height={240} />
+            <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "-36px" }}>
+              {fmtCompact(recaudoCorriente)} / {fmtCompact(presupuestoCorriente)}
+            </div>
           </div>
         </div>
       </div>

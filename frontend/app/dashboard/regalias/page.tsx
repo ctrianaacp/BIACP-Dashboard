@@ -29,19 +29,35 @@ interface FilaSicodis {
   departamento: string;
   region: string;
   entidad: string;
-  proyecto: string; // concepto
+  proyecto: string;
   municipio: string;
   presupuesto_total: string | number;
   presupuesto_corriente: string | number;
   rendimientos_financieros: string | number;
+  disponibilidad_inicial: string | number;
   recaudo_total: string | number;
   recaudo_corriente: string | number;
   avance_recaudo_total: string | number;
+  avance_recaudo_corriente: string | number;
 }
 
 interface HistoricoItem {
   vigencia: string;
   presupuesto_total: string | number;
+  presupuesto_corriente: string | number;
+  rendimientos_financieros: string | number;
+  disponibilidad_inicial: string | number;
+  recaudo_total: string | number;
+  recaudo_corriente: string | number;
+}
+
+interface KpisDB {
+  presupuesto_total: number;
+  presupuesto_corriente: number;
+  rendimientos_financieros: number;
+  disponibilidad_inicial: number;
+  recaudo_total: number;
+  recaudo_corriente: number;
 }
 
 interface ApiResponse {
@@ -50,6 +66,7 @@ interface ApiResponse {
   vigencias: string[];
   vigencia_activa: string;
   total: number;
+  kpis: KpisDB;
   error?: string;
 }
 
@@ -105,7 +122,7 @@ export default function RegaliasPage() {
   const { data: apiData, isLoading, error } = useQuery({
     queryKey: ["regalias-sicodis", vigencia],
     queryFn: () => cargarSGR(vigencia),
-    staleTime: 4 * 60 * 60 * 1000, // 4h
+    staleTime: 4 * 60 * 60 * 1000,
     retry: 1,
   });
 
@@ -120,6 +137,8 @@ export default function RegaliasPage() {
   const registros = apiData?.registros ?? [];
   const historico = apiData?.historico ?? [];
   const vigenciasDisponibles = apiData?.vigencias ?? ["2025 - 2026"];
+  // KPIs pre-calculados en DB (fuente de verdad, sin depender de filtros del frontend)
+  const kpisDB = apiData?.kpis;
 
   // ── Opciones de filtros ──
   const regiones  = useMemo(() => Array.from(new Set(registros.map(r => r.region).filter(v => v && v !== "N/A"))).sort(), [registros]);
@@ -132,17 +151,22 @@ export default function RegaliasPage() {
     return true;
   }), [registros, filtroRegion, filtroDepto]);
 
-  // ── KPIs ──
+  // ── KPIs dinámicos (basados en filtros) ──
   const kpis = useMemo(() => {
-    // El presupuesto oficial es Corriente + Rendimientos
-    const pOficial = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_corriente) + parseNum(r.rendimientos_financieros), 0);
+    const pTotal = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_total), 0);
     const pCorriente = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_corriente), 0);
-    const rCorriente = filtrados.reduce((s, r) => s + parseNum(r.recaudo_corriente), 0);
+    const rendimientos = filtrados.reduce((s, r) => s + parseNum(r.rendimientos_financieros), 0);
+    const dispInicial = filtrados.reduce((s, r) => s + parseNum(r.disponibilidad_inicial), 0);
     const rTotal = filtrados.reduce((s, r) => s + parseNum(r.recaudo_total), 0);
-    const avance = pOficial > 0 ? (rTotal / pOficial) * 100 : 0;
-    return { pOficial, pCorriente, rTotal, rCorriente, avance };
+    const rCorriente = filtrados.reduce((s, r) => s + parseNum(r.recaudo_corriente), 0);
+    // Avance: recaudo_corriente / presupuesto_corriente (comparamos corriente con corriente)
+    const avanceCorriente = pCorriente > 0 ? (rCorriente / pCorriente) * 100 : 0;
+    // Avance total: recaudo_total / presupuesto_total
+    const avanceTotal = pTotal > 0 ? (rTotal / pTotal) * 100 : 0;
+    return { pTotal, pCorriente, rendimientos, dispInicial, rTotal, rCorriente, avanceCorriente, avanceTotal };
   }, [filtrados]);
 
+  // ── Gráfico por Concepto ──
   const porConcepto = useMemo(() => {
     const acc: Record<string, number> = {};
     filtrados.forEach(r => { if (r.proyecto) acc[r.proyecto] = (acc[r.proyecto] ?? 0) + parseNum(r.presupuesto_total); });
@@ -242,20 +266,23 @@ export default function RegaliasPage() {
         </p>
       </div>
 
+      {/* ── KPIs ── */}
       <div className="kpi-grid">
-        <KPICard label="Presupuesto Oficial (SGR)" value={fmtCOP(kpis.pOficial)} color="primary" icon={DollarSign} sub={`Entidades: ${totalEntidades}`} />
-        <KPICard label="Recaudo Total" value={fmtCOP(kpis.rTotal)} color="info" icon={Banknote} sub="Recursos efectivamente ingresados" />
-        <KPICard label="Avance de Recaudo" value={`${kpis.avance.toFixed(1)}%`} color={kpis.avance >= 50 ? "success" : "warning"} icon={BarChart3} sub="Recaudo vs Presupuesto Total" />
-        <KPICard label="Presupuesto Corriente" value={fmtCOP(kpis.pCorriente)} color="default" icon={TrendingUp} sub="Presupuesto sin recursos del balance" />
+        <KPICard label="Presupuesto Total (SGR)" value={fmtCOP(kpis.pTotal)} color="primary" icon={DollarSign} sub={`Corriente + Disp. Inicial + Rendimientos + Otros`} />
+        <KPICard label="Presupuesto Corriente" value={fmtCOP(kpis.pCorriente)} color="default" icon={TrendingUp} sub={`Rendimientos: ${fmtCOP(kpis.rendimientos)} · Disp. Inicial: ${fmtCOP(kpis.dispInicial)}`} />
+        <KPICard label="Recaudo Total" value={fmtCOP(kpis.rTotal)} color="info" icon={Banknote} sub={`Recaudo Corriente: ${fmtCOP(kpis.rCorriente)}`} />
+        <KPICard label="Avance Recaudo" value={`${kpis.avanceTotal.toFixed(1)}%`} color={kpis.avanceTotal >= 50 ? "success" : "warning"} icon={BarChart3} sub={`Avance Corriente: ${kpis.avanceCorriente.toFixed(1)}%`} />
       </div>
 
+      {/* ── Gráficos Avance de Recaudo (dinámicos desde kpis filtrados) ── */}
       <RecaudoAvanceCharts 
-        presupuestoTotal={kpis.pOficial}
+        presupuestoTotal={kpis.pTotal}
         recaudoTotal={kpis.rTotal}
         presupuestoCorriente={kpis.pCorriente}
         recaudoCorriente={kpis.rCorriente}
       />
 
+      {/* ── Gráficos PBC (dinámicos desde hecho_sgr_presupuesto) ── */}
       {pbcData && (
         <>
           <PBCLineCharts data={pbcData} />
@@ -263,6 +290,7 @@ export default function RegaliasPage() {
         </>
       )}
 
+      {/* ── Histórico por Bienio ── */}
       <div className="charts-grid">
         <div className="panel" id="panel-regalias-historico">
           <div className="panel-header">
@@ -289,7 +317,6 @@ export default function RegaliasPage() {
                     labels: { formatter: (v: number) => `$${v}B` }
                   },
                   colors: [({ dataPointIndex, w }: any) => {
-                    // Si es el último, color aqua claro, si no teal oscuro (como en la imagen del PDF)
                     return dataPointIndex === w.config.series[0].data.length - 1 ? "#84e2c8" : "#009988";
                   }],
                   dataLabels: { 
@@ -332,6 +359,7 @@ export default function RegaliasPage() {
         </div>
       </div>
 
+      {/* ── Tabla de Detalle ── */}
       <div className="panel">
         <div className="panel-header">
           <span className="panel-title">Detalle: Presupuesto y Recaudo (SICODIS)</span>
@@ -355,4 +383,3 @@ export default function RegaliasPage() {
     </div>
   );
 }
-
