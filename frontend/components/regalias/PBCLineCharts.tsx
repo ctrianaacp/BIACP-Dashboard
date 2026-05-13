@@ -45,7 +45,7 @@ export default function PBCLineCharts({ data }: { data: any }) {
     <div className="charts-grid" style={{ marginTop: "24px" }}>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Recaudo Directas frente al PBC - Minería</span>
+          <span className="panel-title">Recaudo Directas frente al PBC - Minería (Nacional)</span>
         </div>
         <div className="panel-body">
           {mineriaData.length > 0 && (
@@ -63,7 +63,7 @@ export default function PBCLineCharts({ data }: { data: any }) {
       </div>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Recaudo Directas frente al PBC - Hidrocarburos</span>
+          <span className="panel-title">Recaudo Directas frente al PBC - Hidrocarburos (Nacional)</span>
         </div>
         <div className="panel-body">
           {hidrocarburosData.length > 0 && (

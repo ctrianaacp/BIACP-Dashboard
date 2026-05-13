@@ -42,7 +42,7 @@ export default function PBCBarCharts({ data }: { data: any }) {
     <div className="charts-grid" style={{ marginTop: "24px" }}>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Recaudo y PBC - Minería (Últimos 5 meses)</span>
+          <span className="panel-title">Recaudo y PBC - Minería (Nacional - Últimos 5 meses)</span>
         </div>
         <div className="panel-body">
           {last5Mineria.length > 0 && (
@@ -60,7 +60,7 @@ export default function PBCBarCharts({ data }: { data: any }) {
       </div>
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Recaudo y PBC - Hidrocarburos (Últimos 5 meses)</span>
+          <span className="panel-title">Recaudo y PBC - Hidrocarburos (Nacional - Últimos 5 meses)</span>
         </div>
         <div className="panel-body">
           {last5Hidrocarburos.length > 0 && (

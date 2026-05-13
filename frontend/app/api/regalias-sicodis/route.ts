@@ -5,24 +5,60 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const vigencia = searchParams.get("vigencia") || "2025 - 2026";
+  const vigencia = searchParams.get("vigencia") || "2025-2026";
+  const regiones = searchParams.getAll("region");
+  const departamentos = searchParams.getAll("departamento");
 
   try {
-    // 1. Histórico por bienio — Valores OFICIALES del Presupuesto Bienal aprobado por Ley.
-    //    La tabla SICODIS contiene datos de ejecución/asignación (incluye saldos arrastrados y adiciones)
-    //    que NO corresponden al presupuesto inicial de la Ley. Además, falta el bienio 2019-2020.
-    //    Estos valores son datos de referencia fijos de la Ley de Presupuesto del SGR.
-    const historicoOficial = [
-      { vigencia: "2013 - 2014", presupuesto_total: 17_700_000_000_000 },
-      { vigencia: "2015 - 2016", presupuesto_total: 17_500_000_000_000 },
-      { vigencia: "2017 - 2018", presupuesto_total: 11_800_000_000_000 },
-      { vigencia: "2019 - 2020", presupuesto_total: 18_600_000_000_000 },
-      { vigencia: "2021 - 2022", presupuesto_total: 15_400_000_000_000 },
-      { vigencia: "2023 - 2024", presupuesto_total: 31_100_000_000_000 },
-      { vigencia: "2025 - 2026", presupuesto_total: 30_900_000_000_000 },
-    ];
+    let filterClause = "WHERE vigencia = $1";
+    const queryParams: any[] = [vigencia];
+    let paramIndex = 2;
 
-    // 2. Detalle de registros para la vigencia seleccionada
+    if (regiones.length > 0) {
+      filterClause += ` AND region = ANY($${paramIndex})`;
+      queryParams.push(regiones);
+      paramIndex++;
+    }
+    
+    if (departamentos.length > 0) {
+      filterClause += ` AND departamento_raw = ANY($${paramIndex})`;
+      queryParams.push(departamentos);
+      paramIndex++;
+    }
+
+    // 1. Histórico por bienio — Valores REALES de la DB, sin datos sintéticos.
+    // Aplicando los mismos filtros espaciales (region, depto) sobre todo el histórico,
+    // excepto el de vigencia.
+    let historicoFilterClause = "WHERE 1=1";
+    const historicoParams: any[] = [];
+    let hParamIndex = 1;
+    if (regiones.length > 0) {
+      historicoFilterClause += ` AND region = ANY($${hParamIndex})`;
+      historicoParams.push(regiones);
+      hParamIndex++;
+    }
+    if (departamentos.length > 0) {
+      historicoFilterClause += ` AND departamento_raw = ANY($${hParamIndex})`;
+      historicoParams.push(departamentos);
+      hParamIndex++;
+    }
+
+    const historicoQuery = `
+      SELECT 
+        vigencia, 
+        SUM(COALESCE(presupuesto_total, 0)) as presupuesto_total,
+        SUM(COALESCE(presupuesto_corriente, 0)) as presupuesto_corriente,
+        SUM(COALESCE(rendimientos_financieros, 0)) as rendimientos_financieros,
+        SUM(COALESCE(disponibilidad_inicial, 0)) as disponibilidad_inicial,
+        SUM(COALESCE(recaudo_total, 0)) as recaudo_total,
+        SUM(COALESCE(recaudo_corriente, 0)) as recaudo_corriente
+      FROM hecho_regalias_sicodis
+      ${historicoFilterClause}
+      GROUP BY vigencia
+      ORDER BY vigencia ASC
+    `;
+
+    // 2. Detalle de registros para la vigencia seleccionada (Limitado para no colapsar frontend)
     const detalleQuery = `
       SELECT 
         departamento_raw as departamento,
@@ -39,7 +75,8 @@ export async function GET(request: Request) {
         COALESCE(avance_recaudo_total, 0) as avance_recaudo_total,
         COALESCE(avance_recaudo_corriente, 0) as avance_recaudo_corriente
       FROM hecho_regalias_sicodis
-      WHERE vigencia = $1
+      ${filterClause}
+      LIMIT 2000
     `;
 
     // 3. Vigencias disponibles
@@ -57,25 +94,42 @@ export async function GET(request: Request) {
         SUM(COALESCE(rendimientos_financieros, 0)) as rendimientos_financieros,
         SUM(COALESCE(disponibilidad_inicial, 0)) as disponibilidad_inicial,
         SUM(COALESCE(recaudo_total, 0)) as recaudo_total,
-        SUM(COALESCE(recaudo_corriente, 0)) as recaudo_corriente
+        SUM(COALESCE(recaudo_corriente, 0)) as recaudo_corriente,
+        COUNT(*) as total_registros
       FROM hecho_regalias_sicodis
-      WHERE vigencia = $1
+      ${filterClause}
     `;
 
-    const [detalleRes, vigenciasRes, kpisRes] = await Promise.all([
-      pool.query(detalleQuery, [vigencia]),
+    // 5. Opciones de filtros completos (para que los dropdowns tengan todas las opciones, sin afectarse por el LIMIT)
+    const opcionesQuery = `
+      SELECT DISTINCT region, departamento_raw as departamento
+      FROM hecho_regalias_sicodis
+      WHERE region IS NOT NULL AND region != 'N/A' 
+        AND departamento_raw IS NOT NULL AND departamento_raw != 'N/A'
+    `;
+
+    const [detalleRes, vigenciasRes, kpisRes, historicoRes, opcionesRes] = await Promise.all([
+      pool.query(detalleQuery, queryParams),
       pool.query(vigenciasQuery),
-      pool.query(kpisQuery, [vigencia])
+      pool.query(kpisQuery, queryParams),
+      pool.query(historicoQuery, historicoParams),
+      pool.query(opcionesQuery)
     ]);
 
     const kpisRow = kpisRes.rows[0] || {};
+    
+    // Extraer valores únicos para los filtros
+    const regionesUnicas = Array.from(new Set(opcionesRes.rows.map(r => r.region))).sort();
+    const departamentosUnicos = Array.from(new Set(opcionesRes.rows.map(r => r.departamento))).sort();
 
     return NextResponse.json({
       registros: detalleRes.rows,
-      historico: historicoOficial,
+      historico: historicoRes.rows,
       vigencias: vigenciasRes.rows.map((r: any) => r.vigencia),
+      regiones: regionesUnicas,
+      departamentos: departamentosUnicos,
       vigencia_activa: vigencia,
-      total: detalleRes.rowCount,
+      total: Number(kpisRow.total_registros || 0),
       // KPIs pre-calculados desde la DB (la fuente de verdad)
       kpis: {
         presupuesto_total: Number(kpisRow.presupuesto_total || 0),

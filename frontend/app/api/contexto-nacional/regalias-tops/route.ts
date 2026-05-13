@@ -6,56 +6,49 @@ export async function GET() {
     // 1. Top 5 Departamentos (2024 vs 2025)
     const deptosQuery = `
       SELECT 
-        COALESCE(d.nombre, c.departamento_raw, 'SIN ASIGNAR') as nombre,
-        EXTRACT(YEAR FROM h.fecha_mes) as anio,
-        SUM(h.valor) as valor
-      FROM hecho_regalias h
-      LEFT JOIN dim_campos c ON h.campo_id = c.id
-      LEFT JOIN dim_municipios m ON c.municipio_id = m.id
-      LEFT JOIN dim_departamentos d ON m.departamento_id = d.id
-      WHERE EXTRACT(YEAR FROM h.fecha_mes) IN (2024, 2025)
+        COALESCE(departamento_raw, 'SIN ASIGNAR') as nombre,
+        EXTRACT(YEAR FROM fecha_mes) as anio,
+        SUM(regalia_cop) as valor
+      FROM hecho_regalias_campo
+      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
       GROUP BY 1, 2
     `;
 
     // 2. Top 5 Campos (2024 vs 2025)
     const camposQuery = `
       SELECT 
-        COALESCE(c.nombre, 'SIN ASIGNAR') as nombre,
-        EXTRACT(YEAR FROM h.fecha_mes) as anio,
-        SUM(h.valor) as valor
-      FROM hecho_regalias h
-      LEFT JOIN dim_campos c ON h.campo_id = c.id
-      LEFT JOIN dim_municipios m ON c.municipio_id = m.id
-      LEFT JOIN dim_departamentos d ON m.departamento_id = d.id
-      WHERE EXTRACT(YEAR FROM h.fecha_mes) IN (2024, 2025)
+        COALESCE(campo_raw, 'SIN ASIGNAR') as nombre,
+        EXTRACT(YEAR FROM fecha_mes) as anio,
+        SUM(regalia_cop) as valor
+      FROM hecho_regalias_campo
+      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
       GROUP BY 1, 2
     `;
 
     // 3. Top 5 Municipios (2024 vs 2025)
     const municipiosQuery = `
       SELECT 
-        COALESCE(m.nombre, 'SIN ASIGNAR') as nombre,
-        EXTRACT(YEAR FROM h.fecha_mes) as anio,
-        SUM(h.valor) as valor
-      FROM hecho_regalias h
-      LEFT JOIN dim_campos c ON h.campo_id = c.id
-      LEFT JOIN dim_municipios m ON c.municipio_id = m.id
-      LEFT JOIN dim_departamentos d ON m.departamento_id = d.id
-      WHERE EXTRACT(YEAR FROM h.fecha_mes) IN (2024, 2025)
+        entidad as nombre,
+        EXTRACT(YEAR FROM fecha_mes) as anio,
+        SUM(asignacion_cop) as valor
+      FROM hecho_regalias_asignacion
+      WHERE tipo_beneficiario = 'MUNICIPIO PRODUCTOR'
+        AND EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
       GROUP BY 1, 2
     `;
 
     // 4. Tipo de Hidrocarburo (2024 vs 2025)
     const tiposQuery = `
       SELECT 
-        h.tipo_hidrocarburo as nombre,
-        EXTRACT(YEAR FROM h.fecha_mes) as anio,
-        SUM(h.valor) as valor
-      FROM hecho_regalias h
-      LEFT JOIN dim_campos c ON h.campo_id = c.id
-      LEFT JOIN dim_municipios m ON c.municipio_id = m.id
-      LEFT JOIN dim_departamentos d ON m.departamento_id = d.id
-      WHERE EXTRACT(YEAR FROM h.fecha_mes) IN (2024, 2025)
+        CASE 
+          WHEN tipo_hidrocarburo = 'O' THEN 'PETROLEO'
+          WHEN tipo_hidrocarburo = 'G' THEN 'GAS'
+          ELSE tipo_hidrocarburo
+        END as nombre,
+        EXTRACT(YEAR FROM fecha_mes) as anio,
+        SUM(regalia_cop) as valor
+      FROM hecho_regalias_campo
+      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
       GROUP BY 1, 2
     `;
 

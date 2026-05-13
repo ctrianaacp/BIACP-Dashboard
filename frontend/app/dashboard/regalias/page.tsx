@@ -21,6 +21,7 @@ import DataTable from "@/components/DataTable";
 import PBCLineCharts from "@/components/regalias/PBCLineCharts";
 import PBCBarCharts from "@/components/regalias/PBCBarCharts";
 import RecaudoAvanceCharts from "@/components/regalias/RecaudoAvanceCharts";
+import RegaliasCausadas from "@/components/regalias/RegaliasCausadas";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -99,9 +100,13 @@ function KPICard({ label, value, color, icon: Icon, sub }: {
 }
 
 // ─── Fetch Postgres ───────────────────────────────────────────────────────────
-async function cargarSGR(vigencia: string): Promise<ApiResponse> {
+// ─── Fetch Postgres ───────────────────────────────────────────────────────────
+async function cargarSGR(vigencia: string, regiones: string[], departamentos: string[]): Promise<ApiResponse> {
   const params = new URLSearchParams();
   if (vigencia) params.append("vigencia", vigencia);
+  regiones.forEach(r => params.append("region", r));
+  departamentos.forEach(d => params.append("departamento", d));
+  
   const res = await fetch(`/api/regalias-sicodis?${params.toString()}`);
   if (!res.ok) {
     throw new Error(`Error ${res.status} consultando base de datos SICODIS`);
@@ -111,7 +116,7 @@ async function cargarSGR(vigencia: string): Promise<ApiResponse> {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function RegaliasPage() {
-  const [vigencia, setVigencia] = useState("2025 - 2026");
+  const [vigencia, setVigencia] = useState("2025-2026");
   const [pbcData, setPbcData] = useState<any>(null);
   const [filtroRegion, setFiltroRegion]   = useState<string[]>([]);
   const [filtroDepto, setFiltroDepto] = useState<string[]>([]);
@@ -120,8 +125,8 @@ export default function RegaliasPage() {
   const filtrosActivos = [filtroRegion, filtroDepto].filter(v => v.length > 0).length;
 
   const { data: apiData, isLoading, error } = useQuery({
-    queryKey: ["regalias-sicodis", vigencia],
-    queryFn: () => cargarSGR(vigencia),
+    queryKey: ["regalias-sicodis", vigencia, filtroRegion, filtroDepto],
+    queryFn: () => cargarSGR(vigencia, filtroRegion, filtroDepto),
     staleTime: 4 * 60 * 60 * 1000,
     retry: 1,
   });
@@ -136,35 +141,37 @@ export default function RegaliasPage() {
 
   const registros = apiData?.registros ?? [];
   const historico = apiData?.historico ?? [];
-  const vigenciasDisponibles = apiData?.vigencias ?? ["2025 - 2026"];
-  // KPIs pre-calculados en DB (fuente de verdad, sin depender de filtros del frontend)
+  const vigenciasDisponibles = apiData?.vigencias ?? ["2025-2026"];
+  // KPIs pre-calculados en DB (fuente de verdad, filtrados desde backend)
   const kpisDB = apiData?.kpis;
 
   // ── Opciones de filtros ──
-  const regiones  = useMemo(() => Array.from(new Set(registros.map(r => r.region).filter(v => v && v !== "N/A"))).sort(), [registros]);
-  const departamentos = useMemo(() => Array.from(new Set(registros.map(r => r.departamento).filter(v => v && v !== "N/A"))).sort(), [registros]);
+  // Las opciones completas ahora se envían desde la base de datos para no verse truncadas por el LIMIT 2000.
+  const regiones = apiData?.regiones ?? [];
+  const departamentos = apiData?.departamentos ?? [];
 
   // ── Filtros aplicados ──
-  const filtrados = useMemo(() => registros.filter(r => {
-    if (filtroRegion.length > 0 && !filtroRegion.includes(r.region)) return false;
-    if (filtroDepto.length > 0 && !filtroDepto.includes(r.departamento)) return false;
-    return true;
-  }), [registros, filtroRegion, filtroDepto]);
+  // Como la base de datos ahora nos entrega los registros ya filtrados (hasta 2000), "filtrados" es igual a "registros".
+  const filtrados = registros;
 
-  // ── KPIs dinámicos (basados en filtros) ──
+  // ── KPIs dinámicos (basados en DB, filtrados desde backend) ──
   const kpis = useMemo(() => {
-    const pTotal = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_total), 0);
-    const pCorriente = filtrados.reduce((s, r) => s + parseNum(r.presupuesto_corriente), 0);
-    const rendimientos = filtrados.reduce((s, r) => s + parseNum(r.rendimientos_financieros), 0);
-    const dispInicial = filtrados.reduce((s, r) => s + parseNum(r.disponibilidad_inicial), 0);
-    const rTotal = filtrados.reduce((s, r) => s + parseNum(r.recaudo_total), 0);
-    const rCorriente = filtrados.reduce((s, r) => s + parseNum(r.recaudo_corriente), 0);
-    // Avance: recaudo_corriente / presupuesto_corriente (comparamos corriente con corriente)
-    const avanceCorriente = pCorriente > 0 ? (rCorriente / pCorriente) * 100 : 0;
-    // Avance total: recaudo_total / presupuesto_total
+    if (!kpisDB) return { pTotal: 0, presupuestoReal: 0, rendimientos: 0, dispInicial: 0, rTotal: 0, rCorriente: 0, avanceCorriente: 0, avanceTotal: 0, pCorrienteBase: 0 };
+
+    const pTotal = kpisDB.presupuesto_total;
+    const pCorrienteBase = kpisDB.presupuesto_corriente;
+    const rendimientos = kpisDB.rendimientos_financieros;
+    const presupuestoReal = pCorrienteBase + rendimientos; 
+    
+    const dispInicial = kpisDB.disponibilidad_inicial;
+    const rTotal = kpisDB.recaudo_total;
+    const rCorriente = kpisDB.recaudo_corriente;
+    
+    const avanceCorriente = presupuestoReal > 0 ? (rCorriente / presupuestoReal) * 100 : 0;
     const avanceTotal = pTotal > 0 ? (rTotal / pTotal) * 100 : 0;
-    return { pTotal, pCorriente, rendimientos, dispInicial, rTotal, rCorriente, avanceCorriente, avanceTotal };
-  }, [filtrados]);
+    
+    return { pTotal, presupuestoReal, rendimientos, dispInicial, rTotal, rCorriente, avanceCorriente, avanceTotal, pCorrienteBase };
+  }, [kpisDB]);
 
   // ── Gráfico por Concepto ──
   const porConcepto = useMemo(() => {
@@ -261,7 +268,7 @@ export default function RegaliasPage() {
       <div className="page-header">
         <h1 style={{ color: 'var(--color-primary)', fontWeight: 900 }}>Regalías (SGR) - SICODIS</h1>
         <p>
-          Presupuesto vs Recaudo · Bienio {vigencia} · {filtrados.length.toLocaleString("es-CO")} registros
+          Presupuesto vs Recaudo · Bienio {vigencia} · {(filtrosActivos > 0 ? filtrados.length : (apiData?.total || filtrados.length)).toLocaleString("es-CO")} registros
           {filtrosActivos > 0 && <span style={{ marginLeft: 12, background: 'var(--color-primary)', color: '#fff', padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>{filtrosActivos} activos</span>}
         </p>
       </div>
@@ -269,7 +276,7 @@ export default function RegaliasPage() {
       {/* ── KPIs ── */}
       <div className="kpi-grid">
         <KPICard label="Presupuesto Total (SGR)" value={fmtCOP(kpis.pTotal)} color="primary" icon={DollarSign} sub={`Corriente + Disp. Inicial + Rendimientos + Otros`} />
-        <KPICard label="Presupuesto Corriente" value={fmtCOP(kpis.pCorriente)} color="default" icon={TrendingUp} sub={`Rendimientos: ${fmtCOP(kpis.rendimientos)} · Disp. Inicial: ${fmtCOP(kpis.dispInicial)}`} />
+        <KPICard label="Presupuesto Real" value={fmtCOP(kpis.presupuestoReal)} color="default" icon={TrendingUp} sub={`P. Corriente: ${fmtCOP(kpis.pCorrienteBase)} · Rendimientos: ${fmtCOP(kpis.rendimientos)}`} />
         <KPICard label="Recaudo Total" value={fmtCOP(kpis.rTotal)} color="info" icon={Banknote} sub={`Recaudo Corriente: ${fmtCOP(kpis.rCorriente)}`} />
         <KPICard label="Avance Recaudo" value={`${kpis.avanceTotal.toFixed(1)}%`} color={kpis.avanceTotal >= 50 ? "success" : "warning"} icon={BarChart3} sub={`Avance Corriente: ${kpis.avanceCorriente.toFixed(1)}%`} />
       </div>
@@ -278,7 +285,7 @@ export default function RegaliasPage() {
       <RecaudoAvanceCharts 
         presupuestoTotal={kpis.pTotal}
         recaudoTotal={kpis.rTotal}
-        presupuestoCorriente={kpis.pCorriente}
+        presupuestoCorriente={kpis.presupuestoReal}
         recaudoCorriente={kpis.rCorriente}
       />
 
@@ -290,7 +297,10 @@ export default function RegaliasPage() {
         </>
       )}
 
-      {/* ── Histórico por Bienio ── */}
+      {/* ── Explorador Dinámico de Regalías Causadas ── */}
+      <RegaliasCausadas />
+
+      {/* ── Histórico por Bienio (SICODIS) ── */}
       <div className="charts-grid">
         <div className="panel" id="panel-regalias-historico">
           <div className="panel-header">
@@ -363,7 +373,9 @@ export default function RegaliasPage() {
       <div className="panel">
         <div className="panel-header">
           <span className="panel-title">Detalle: Presupuesto y Recaudo (SICODIS)</span>
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{filtrados.length} registros detallados</span>
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+            Mostrando {filtrados.length} {apiData?.total > filtrados.length && filtrosActivos === 0 ? `(de ${apiData.total})` : ''} registros
+          </span>
         </div>
         <DataTable
           data={filtrados}
