@@ -70,8 +70,9 @@ export async function GET(request: Request) {
     const whereMain = mainConditions.length > 0 ? `WHERE ${mainConditions.join(" AND ")}` : "";
     const whereSinAno = condSinAnoRenumerado.length > 0 ? `WHERE ${condSinAnoRenumerado.join(" AND ")}` : "";
 
-    // MAX(ano) usando solo los filtros sin año
-    const maxAnoSql = `(SELECT MAX(ano) FROM hecho_reservas_resumen ${whereSinAno})`;
+    // MAX(ano) usando solo los filtros sin año, y exigiendo que haya reservas 1P reales (>0)
+    // para evitar que devuelva 2025 donde solo hay producción acumulada pero no certificación de reservas.
+    const maxAnoSql = `(SELECT MAX(ano) FROM hecho_reservas_resumen WHERE descripcion = 'TOTAL RESERVA PROBADA (1P):' AND ${colName} > 0 ${whereSinAno ? "AND " + whereSinAno.replace("WHERE ", "") : ""})`;
 
     // Condiciones para top campos/operadoras: ano = MAX y filtros sin año
     const condTop = condSinAnoRenumerado.length > 0
