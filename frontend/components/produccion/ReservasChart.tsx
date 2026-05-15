@@ -35,6 +35,7 @@ export default function ReservasChart({ producto, filtros }: { producto: "Petrol
   if (error || !data) return null;
 
   const topCampos = data.top_campos || [];
+  const topOperadoras = data.top_operadoras || [];
   const historico = data.historico || [];
   const kpis = data.kpis || {};
 
@@ -193,6 +194,62 @@ export default function ReservasChart({ producto, filtros }: { producto: "Petrol
           * Valores en millones. Reservas remanentes calculadas como Estimado Máximo de Reservas - Producción Acumulada.
         </div>
       </div>
+      </div>
+
+      {/* Top 10 Operadoras */}
+      <div className="panel" id={`panel-reservas-operadoras-${producto}`}>
+        <div className="panel-header">
+          <span className="panel-title">Top 10 Operadoras por Reservas Remanentes ({kpis.ano})</span>
+          <ExportButton targetId={`panel-reservas-operadoras-${producto}`} fileName={`Reservas_Operadoras_${producto}`} />
+        </div>
+        <div className="panel-body">
+          {typeof window !== "undefined" && topOperadoras.length > 0 && (
+            <Chart 
+              type="bar" 
+              height={350}
+              series={[
+                { name: "Producción Acumulada", data: topOperadoras.map((c: any) => parseFloat(c.produccion_acumulada) / 1000000) },
+                { name: "Reservas Remanentes", data: topOperadoras.map((c: any) => parseFloat(c.reservas_remanentes) / 1000000) }
+              ]}
+              options={{
+                chart: { 
+                  background: "transparent", 
+                  toolbar: { show: false }, 
+                  fontFamily: "var(--font-main)",
+                  stacked: true
+                },
+                theme: { mode: "light" },
+                colors: ["#D44D03", "#1E4E2C"],
+                plotOptions: {
+                  bar: {
+                    borderRadius: 2,
+                    horizontal: true,
+                    barHeight: "60%"
+                  }
+                },
+                dataLabels: { 
+                  enabled: false 
+                },
+                xaxis: { 
+                  categories: topOperadoras.map((c: any) => c.nombre),
+                  title: { text: `Millones (${unit})`, style: { color: "var(--color-text-muted)" } },
+                  labels: { style: { colors: "var(--color-text-muted)" }, formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 0 }) }
+                },
+                yaxis: { 
+                  labels: { style: { colors: "var(--color-text)", fontWeight: 600, fontSize: "11px" } }
+                },
+                grid: { borderColor: "#DDE3E8", xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+                legend: { position: "top", horizontalAlign: "center" },
+                tooltip: {
+                  y: { formatter: (v: number) => `${v.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${unit}` }
+                }
+              }}
+            />
+          )}
+          <div style={{ fontSize: 11, color: "var(--color-text-muted)", textAlign: "center", marginTop: 8 }}>
+            * Valores en millones. Reservas remanentes calculadas como Estimado Máximo - Producción Acumulada.
+          </div>
+        </div>
       </div>
     </div>
   );

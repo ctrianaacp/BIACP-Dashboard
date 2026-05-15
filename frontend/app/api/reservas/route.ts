@@ -87,14 +87,64 @@ export async function GET(request: Request) {
       ORDER BY reservas_remanentes DESC
       LIMIT 10
     `;
-    // filterValues funciona igual porque el maxAnoCondition y el whereClause usan las mismas dependencias de índice
     const { rows: topCampos } = await pool.query(topCamposQuery, filterValues);
 
-    // 3. Histórico de Reservas (1P, 2P, 3P)
+    // 3. Top 10 Operadoras con Mayores Reservas Remanentes (para el último año filtrado)
+    const topOperadorasQuery = `
+      SELECT 
+        empresa_raw as nombre,
+        SUM(estimado_maximo_reservas) as estimado_maximo_reservas,
+        SUM(produccion_acumulada) as produccion_acumulada,
+        (SUM(estimado_maximo_reservas) - SUM(produccion_acumulada)) as reservas_remanentes
+      FROM hecho_reservas_yacimientos
+      WHERE producto_nombre = $1 AND ano = ${maxAnoCondition} ${whereClause}
+      GROUP BY empresa_raw
+      ORDER BY reservas_remanentes DESC
+      LIMIT 10
+    `;
+    const { rows: topOperadoras } = await pool.query(topOperadorasQuery, filterValues);
+
+    // 4. Histórico de Reservas (1P, 2P, 3P) - ignoramos el filtro de años para ver la curva completa
     const colName = producto === 'Petroleo' ? 'liquido' : 'gas';
-    const whereResumen = filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : '';
-    // Param values need to exclude `producto` because resumen table doesn't filter by producto, it uses the columns
-    const resumenValues = filterValues.slice(1);
+    const filterConditionsSinAno = filterConditions.filter(c => !c.startsWith('ano ='));
+    const whereResumen = filterConditionsSinAno.length > 0 ? ` WHERE ${filterConditionsSinAno.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : '';
+    // Param values need to exclude `producto` and the `aniosList`
+    // Since `aniosList` was pushed right after `producto` if it existed, we need to carefully extract the values.
+    // The easiest way is to re-evaluate the parameters for the historical query without `ano`.
+    
+    let histParamIndex = 1;
+    const histValues: any[] = [];
+    const histConditions = [];
+
+    if (operadorasParam) {
+      const ops = operadorasParam.split(',').filter(o => o !== 'Todas' && o !== 'Todos');
+      if (ops.length > 0) {
+        histConditions.push(`empresa_raw = ANY($${histParamIndex}::text[])`);
+        histValues.push(ops);
+        histParamIndex++;
+      }
+    }
+
+    if (camposParam) {
+      const campos = camposParam.split(',').filter(c => c !== 'Todos');
+      if (campos.length > 0) {
+        histConditions.push(`campo_raw = ANY($${histParamIndex}::text[])`);
+        histValues.push(campos);
+        histParamIndex++;
+      }
+    }
+
+    if (contratosParam) {
+      const contratos = contratosParam.split(',').filter(c => c !== 'Todos');
+      if (contratos.length > 0) {
+        histConditions.push(`contrato_raw = ANY($${histParamIndex}::text[])`);
+        histValues.push(contratos);
+        histParamIndex++;
+      }
+    }
+
+    const histWhereResumen = histConditions.length > 0 ? ` WHERE ${histConditions.join(' AND ')}` : '';
+    const histWhereProd = histConditions.length > 0 ? ` WHERE ${histConditions.map(c => c.replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : '';
 
     const historicoQuery = `
       WITH res AS (
@@ -104,14 +154,14 @@ export async function GET(request: Request) {
           SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
           SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
         FROM hecho_reservas_resumen
-        ${filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : ''}
+        ${histWhereResumen}
         GROUP BY ano
       ), prod AS (
         SELECT 
           EXTRACT(YEAR FROM fecha)::int as ano, 
           (SUM(${producto === 'Petroleo' ? 'produccion_bpd' : 'produccion_mpcd'}) / 12) * 365 as prod_anual 
         FROM ${producto === 'Petroleo' ? 'hecho_produccion' : 'hecho_produccion_gas'}
-        ${filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`).replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : ''}
+        ${histWhereProd}
         GROUP BY ano
       )
       SELECT 
@@ -125,11 +175,12 @@ export async function GET(request: Request) {
       WHERE COALESCE(r.ano, p.ano) >= 2016 AND COALESCE(r.reservas_1p, 0) > 0
       ORDER BY ano ASC
     `;
-    const { rows: historico } = await pool.query(historicoQuery, resumenValues);
+    const { rows: historico } = await pool.query(historicoQuery, histValues);
 
     return NextResponse.json({
       kpis: kpis[0] || { estimado_maximo_reservas: 0, produccion_acumulada: 0, reservas_remanentes: 0 },
       top_campos: topCampos,
+      top_operadoras: topOperadoras,
       historico: historico
     });
 
