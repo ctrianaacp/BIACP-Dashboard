@@ -9,7 +9,6 @@ export async function GET(request: Request) {
     const producto = searchParams.get("producto") || "Petroleo"; // 'Petroleo' o 'Gas'
 
     const aniosParam = searchParams.get("anios");
-    const aniosParam = searchParams.get("anios");
     const operadorasParam = searchParams.get("operadoras");
     const camposParam = searchParams.get("campos");
     const contratosParam = searchParams.get("contratos");
