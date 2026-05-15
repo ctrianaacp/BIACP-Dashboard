@@ -109,7 +109,7 @@ export async function GET(request: Request) {
       ), prod AS (
         SELECT 
           EXTRACT(YEAR FROM fecha)::int as ano, 
-          (SUM(${producto === 'Petroleo' ? 'produccion_bpd' : 'produccion_mpcd'}) / COUNT(*)) * 365 as prod_anual 
+          (SUM(${producto === 'Petroleo' ? 'produccion_bpd' : 'produccion_mpcd'}) / 12) * 365 as prod_anual 
         FROM ${producto === 'Petroleo' ? 'hecho_produccion' : 'hecho_produccion_gas'}
         ${filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`).replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : ''}
         GROUP BY ano

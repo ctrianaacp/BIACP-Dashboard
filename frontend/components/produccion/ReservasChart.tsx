@@ -93,21 +93,10 @@ export default function ReservasChart({ producto, filtros }: { producto: "Petrol
                   categories: historico.map((h: any) => h.ano),
                   labels: { style: { colors: "var(--color-text-muted)", fontWeight: 600 } }
                 },
-                yaxis: [
-                  {
-                    seriesName: "Reservas Probadas (1P)",
-                    title: { text: `Reservas (${unit})`, style: { color: "#003745" } },
-                    labels: { style: { colors: "#003745" }, formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 0 }) }
-                  },
-                  { seriesName: "Reservas Probadas (1P)", show: false },
-                  { seriesName: "Reservas Probadas (1P)", show: false },
-                  {
-                    opposite: true,
-                    seriesName: "Producción Real Anual",
-                    title: { text: `Producción (${unit}/año)`, style: { color: "#D44D03" } },
-                    labels: { style: { colors: "#D44D03" }, formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 1 }) }
-                  }
-                ],
+                yaxis: { 
+                  title: { text: `Millones (${unit})`, style: { color: "var(--color-text-muted)" } },
+                  labels: { formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 0 }) }
+                },
                 grid: { borderColor: "#DDE3E8" },
                 legend: { position: "top", horizontalAlign: "center" },
                 tooltip: {
