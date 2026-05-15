@@ -287,16 +287,10 @@ export default function ContextoNacionalPage() {
                 },
                 stroke: { show: true, width: 2, colors: ['transparent'] },
                 xaxis: { 
-                  type: 'datetime',
-                  categories: chartData.categorias,
+                  type: 'category',
+                  categories: chartData.labels,
                   labels: { 
-                    style: { colors: "var(--color-text-muted)", fontSize: "12px", fontWeight: 600 },
-                    datetimeUTC: false,
-                    formatter: function(value, timestamp, opts) {
-                      if (!timestamp) return value;
-                      const idx = chartData.categorias.indexOf(timestamp);
-                      return idx !== -1 ? chartData.labels[idx] : value;
-                    }
+                    style: { colors: "var(--color-text-muted)", fontSize: "12px", fontWeight: 600 }
                   }
                 },
                 yaxis: { 
@@ -378,16 +372,10 @@ export default function ContextoNacionalPage() {
                   strokeWidth: 2
                 },
                 xaxis: { 
-                  type: 'datetime',
-                  categories: chartDataPart.categorias,
+                  type: 'category',
+                  categories: chartDataPart.labels,
                   labels: { 
-                    style: { colors: "var(--color-text-muted)", fontSize: "12px", fontWeight: 600 },
-                    datetimeUTC: false,
-                    formatter: function(value, timestamp, opts) {
-                      if (!timestamp) return value;
-                      const idx = chartDataPart.categorias.indexOf(timestamp);
-                      return idx !== -1 ? chartDataPart.labels[idx] : value;
-                    }
+                    style: { colors: "var(--color-text-muted)", fontSize: "12px", fontWeight: 600 }
                   }
                 },
                 yaxis: { 
@@ -538,16 +526,10 @@ export default function ContextoNacionalPage() {
                 },
                 stroke: { show: true, width: 2, colors: ['transparent'] },
                 xaxis: { 
-                  type: 'datetime',
-                  categories: chartDataIed.categorias,
+                  type: 'category',
+                  categories: chartDataIed.labels,
                   labels: { 
-                    style: { colors: "var(--color-text-muted)", fontSize: "11px", fontWeight: 600 },
-                    datetimeUTC: false,
-                    formatter: function(value, timestamp, opts) {
-                      if (!timestamp) return value;
-                      const idx = chartDataIed.categorias.indexOf(timestamp);
-                      return idx !== -1 ? chartDataIed.labels[idx] : value;
-                    }
+                    style: { colors: "var(--color-text-muted)", fontSize: "11px", fontWeight: 600 }
                   }
                 },
                 yaxis: { 
@@ -618,16 +600,10 @@ export default function ContextoNacionalPage() {
                   curve: "straight"
                 },
                 xaxis: { 
-                  type: 'datetime',
-                  categories: chartDataRegalias.categorias,
+                  type: 'category',
+                  categories: chartDataRegalias.labels,
                   labels: { 
-                    style: { colors: "var(--color-text-muted)", fontSize: "11px", fontWeight: 600 },
-                    datetimeUTC: false,
-                    formatter: function(value, timestamp, opts) {
-                      if (!timestamp) return value;
-                      const idx = chartDataRegalias.categorias.indexOf(timestamp);
-                      return idx !== -1 ? chartDataRegalias.labels[idx] : value;
-                    }
+                    style: { colors: "var(--color-text-muted)", fontSize: "11px", fontWeight: 600 }
                   }
                 },
                 yaxis: { 
