@@ -45,12 +45,13 @@ export default function ReservasChart({ producto }: { producto: "Petroleo" | "Ga
           </div>
           {typeof window !== "undefined" && historico.length > 0 && (
             <Chart 
-              type="bar" 
-              height={300}
+              type="line" 
+              height={350}
               series={[
-                { name: "Reservas Probadas (1P)", data: historico.map((h: any) => parseFloat(h.reservas_1p) / 1000000) },
-                { name: "Reservas Probables", data: historico.map((h: any) => parseFloat(h.reservas_probables) / 1000000) },
-                { name: "Reservas Posibles", data: historico.map((h: any) => parseFloat(h.reservas_posibles) / 1000000) }
+                { name: "Reservas Probadas (1P)", type: "column", data: historico.map((h: any) => parseFloat(h.reservas_1p) / 1000000) },
+                { name: "Reservas Probables", type: "column", data: historico.map((h: any) => parseFloat(h.reservas_probables) / 1000000) },
+                { name: "Reservas Posibles", type: "column", data: historico.map((h: any) => parseFloat(h.reservas_posibles) / 1000000) },
+                { name: "Producción Real Anual", type: "line", data: historico.map((h: any) => parseFloat(h.prod_anual) / (producto === 'Petroleo' ? 1000000 : 1)) }
               ]}
               options={{
                 chart: { 
@@ -60,7 +61,11 @@ export default function ReservasChart({ producto }: { producto: "Petroleo" | "Ga
                   stacked: true
                 },
                 theme: { mode: "light" },
-                colors: ["#003745", "#DFA51B", "#1E4E2C"],
+                colors: ["#003745", "#DFA51B", "#1E4E2C", "#D44D03"],
+                stroke: {
+                  width: [0, 0, 0, 3],
+                  curve: "smooth"
+                },
                 plotOptions: {
                   bar: {
                     borderRadius: 2,
@@ -74,13 +79,26 @@ export default function ReservasChart({ producto }: { producto: "Petroleo" | "Ga
                   categories: historico.map((h: any) => h.ano),
                   labels: { style: { colors: "var(--color-text-muted)", fontWeight: 600 } }
                 },
-                yaxis: { 
-                  title: { text: `Millones (${unit})`, style: { color: "var(--color-text-muted)" } },
-                  labels: { formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 0 }) }
-                },
+                yaxis: [
+                  {
+                    seriesName: "Reservas Probadas (1P)",
+                    title: { text: `Reservas (${unit})`, style: { color: "#003745" } },
+                    labels: { style: { colors: "#003745" }, formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 0 }) }
+                  },
+                  { seriesName: "Reservas Probadas (1P)", show: false },
+                  { seriesName: "Reservas Probadas (1P)", show: false },
+                  {
+                    opposite: true,
+                    seriesName: "Producción Real Anual",
+                    title: { text: `Producción (${unit}/año)`, style: { color: "#D44D03" } },
+                    labels: { style: { colors: "#D44D03" }, formatter: (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 1 }) }
+                  }
+                ],
                 grid: { borderColor: "#DDE3E8" },
                 legend: { position: "top", horizontalAlign: "center" },
                 tooltip: {
+                  shared: true,
+                  intersect: false,
                   y: { formatter: (v: number) => `${v.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${unit}` }
                 }
               }}

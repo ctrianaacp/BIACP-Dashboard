@@ -42,13 +42,30 @@ export async function GET(request: Request) {
     // Producto_nombre in the new table is 'Petroleo' or 'Gas', but the resumen table uses columns 'liquido' and 'gas'.
     const colName = producto === 'Petroleo' ? 'liquido' : 'gas';
     const historicoQuery = `
+      WITH res AS (
+        SELECT 
+          ano,
+          SUM(CASE WHEN descripcion = 'TOTAL RESERVA PROBADA (1P):' THEN ${colName} ELSE 0 END) as reservas_1p,
+          SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
+          SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
+        FROM hecho_reservas_resumen
+        GROUP BY ano
+      ), prod AS (
+        SELECT 
+          EXTRACT(YEAR FROM fecha)::int as ano, 
+          (SUM(${producto === 'Petroleo' ? 'produccion_bpd' : 'produccion_mpcd'}) / COUNT(*)) * 365 as prod_anual 
+        FROM ${producto === 'Petroleo' ? 'hecho_produccion' : 'hecho_produccion_gas'}
+        GROUP BY ano
+      )
       SELECT 
-        ano,
-        SUM(CASE WHEN descripcion = 'TOTAL RESERVA PROBADA (1P):' THEN ${colName} ELSE 0 END) as reservas_1p,
-        SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
-        SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
-      FROM hecho_reservas_resumen
-      GROUP BY ano
+        COALESCE(r.ano, p.ano) as ano,
+        COALESCE(r.reservas_1p, 0) as reservas_1p,
+        COALESCE(r.reservas_probables, 0) as reservas_probables,
+        COALESCE(r.reservas_posibles, 0) as reservas_posibles,
+        COALESCE(p.prod_anual, 0) as prod_anual
+      FROM res r
+      FULL OUTER JOIN prod p ON r.ano = p.ano
+      WHERE COALESCE(r.ano, p.ano) >= 2016 AND COALESCE(r.ano, p.ano) <= (SELECT MAX(ano) FROM hecho_reservas_yacimientos)
       ORDER BY ano ASC
     `;
     const { rows: historico } = await pool.query(historicoQuery);
