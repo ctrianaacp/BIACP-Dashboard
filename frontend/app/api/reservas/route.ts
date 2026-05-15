@@ -67,17 +67,28 @@ export async function GET(request: Request) {
       condSinAnoRenumerado.push(c.replace(/\$\d+/g, () => `$${renumIdx++}`));
     }
 
-    const whereMain = mainConditions.length > 0 ? `WHERE ${mainConditions.join(" AND ")}` : "";
+    // Si el usuario filtró por año explícitamente, usamos ese filtro (que es el primer valor en condMainRenumerado que empieza con ano=)
+    // De lo contrario, buscamos el MAX(ano) válido.
+    const hasAnoFilter = mainConditions.some(c => c.startsWith("ano ="));
     const whereSinAno = condSinAnoRenumerado.length > 0 ? `WHERE ${condSinAnoRenumerado.join(" AND ")}` : "";
-
+    
     // MAX(ano) usando solo los filtros sin año, y exigiendo que haya reservas 1P reales (>0)
-    // para evitar que devuelva 2025 donde solo hay producción acumulada pero no certificación de reservas.
     const maxAnoSql = `(SELECT MAX(ano) FROM hecho_reservas_resumen WHERE descripcion = 'TOTAL RESERVA PROBADA (1P):' AND ${colName} > 0 ${whereSinAno ? "AND " + whereSinAno.replace("WHERE ", "") : ""})`;
 
-    // Condiciones para top campos/operadoras: ano = MAX y filtros sin año
-    const condTop = condSinAnoRenumerado.length > 0
-      ? `ano = ${maxAnoSql} AND ${condSinAnoRenumerado.join(" AND ")}`
-      : `ano = ${maxAnoSql}`;
+    // Reconstruir mainConditions renumeradas correctamente para kpis/tops
+    let mainRenumIdx = 1;
+    const condMainRenumerado: string[] = [];
+    for (const c of mainConditions) {
+      condMainRenumerado.push(c.replace(/\$\d+/g, () => `$${mainRenumIdx++}`));
+    }
+
+    const condTop = hasAnoFilter
+      ? condMainRenumerado.join(" AND ")
+      : (condSinAnoRenumerado.length > 0
+          ? `ano = ${maxAnoSql} AND ${condSinAnoRenumerado.join(" AND ")}`
+          : `ano = ${maxAnoSql}`);
+
+    const valsTop = hasAnoFilter ? mainValues : valsSinAno;
 
     // --- 1. KPIs ---
     const kpisQuery = `
@@ -89,7 +100,7 @@ export async function GET(request: Request) {
       WHERE ${condTop}
       GROUP BY ano
     `;
-    const { rows: kpisRes } = await pool.query(kpisQuery, valsSinAno);
+    const { rows: kpisRes } = await pool.query(kpisQuery, valsTop);
     const kpis = kpisRes.map(k => ({
       ano: k.ano,
       reservas_remanentes: parseFloat(k.reservas_1p),
@@ -109,7 +120,7 @@ export async function GET(request: Request) {
       ORDER BY reservas_remanentes DESC
       LIMIT 10
     `;
-    const { rows: topCampos } = await pool.query(topCamposQuery, valsSinAno);
+    const { rows: topCampos } = await pool.query(topCamposQuery, valsTop);
 
     // --- 3. Top 10 Operadoras ---
     const topOperadorasQuery = `
@@ -123,7 +134,7 @@ export async function GET(request: Request) {
       ORDER BY reservas_remanentes DESC
       LIMIT 10
     `;
-    const { rows: topOperadoras } = await pool.query(topOperadorasQuery, valsSinAno);
+    const { rows: topOperadoras } = await pool.query(topOperadorasQuery, valsTop);
 
     // --- 4. Histórico (sin filtro de año, para ver curva completa) ---
     let histIdx = 1;
