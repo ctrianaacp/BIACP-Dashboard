@@ -122,7 +122,7 @@ export async function GET(request: Request) {
         COALESCE(p.prod_anual, 0) as prod_anual
       FROM res r
       FULL OUTER JOIN prod p ON r.ano = p.ano
-      WHERE COALESCE(r.ano, p.ano) >= 2016 AND COALESCE(r.ano, p.ano) <= (SELECT MAX(ano) FROM hecho_reservas_yacimientos)
+      WHERE COALESCE(r.ano, p.ano) >= 2016 AND COALESCE(r.reservas_1p, 0) > 0
       ORDER BY ano ASC
     `;
     const { rows: historico } = await pool.query(historicoQuery, resumenValues);
