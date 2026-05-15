@@ -46,6 +46,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/regalias", label: "Regalías SGR", icon: DollarSign, section: "regalías" },
   { href: "/dashboard/resumen-social", label: "Impacto Global Social", icon: Globe, section: "social" },
   { href: "/dashboard/contratacion", label: "Bienes y Servicios", icon: HardHat, section: "social" },
+  { href: "/dashboard/proveedores-oil-gas", label: "Proveedores Oil & Gas", icon: HardHat, section: "social" },
   { href: "/dashboard/empleo", label: "Empleo", icon: Users, section: "social" },
   { href: "/dashboard/inversion-social", label: "Inversión Social", icon: Handshake, section: "social" },
   { href: "/dashboard/consulta-previa", label: "Consulta Previa", icon: FileText, section: "social" },

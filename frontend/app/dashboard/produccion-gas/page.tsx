@@ -11,6 +11,7 @@ import { formatNum, formatAbbr, formatCurrency } from "@/lib/formatters";
 import ExportButton from "@/components/ExportButton";
 import DataTable from "@/components/DataTable";
 import MultiSelect from "@/components/MultiSelect";
+import ReservasChart from "@/components/produccion/ReservasChart";
 import { CheckCircle2 } from "lucide-react";
 import { 
   Flame, 
@@ -513,6 +514,8 @@ export default function ProduccionGasPage() {
           </div>
         </div>
       </div>
+
+      <ReservasChart producto="Gas" />
 
       <div className="panel" id="panel-gas-dpto" style={{ marginBottom: 24 }}>
         <div className="panel-header">

@@ -32,6 +32,7 @@ import { CheckCircle2 } from "lucide-react";
 import MultiSelect from "@/components/MultiSelect";
 import ExportButton from "@/components/ExportButton";
 import DataTable from "@/components/DataTable";
+import ReservasChart from "@/components/produccion/ReservasChart";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface RegistroPetroleo {
@@ -782,6 +783,8 @@ export default function ProduccionPetroleoPage() {
           </div>
         </div>
       </div>
+
+      <ReservasChart producto="Petroleo" />
 
       <div className="panel" id="panel-dpto" style={{ marginBottom: 24 }}>
         <div className="panel-header">

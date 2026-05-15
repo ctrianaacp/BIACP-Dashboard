@@ -1,0 +1,476 @@
+{
+  "success": true,
+  "data": {
+    "id": "fdf8b794-21ee-472e-bb83-c362701a394c",
+    "company_type_id": "0c00895c-594c-4699-85b6-ab8486743d77",
+    "status_id": "c12e4139-53ae-4a5c-b6d7-3de915f2462d",
+    "affiliation_status_id": "15b69ce3-0a19-46bf-9cca-64592af4e5a7",
+    "is_active": true,
+    "is_new": false,
+    "is_featured": false,
+    "created_at": "2025-07-20T14:55:52.315Z",
+    "updated_at": "2025-11-13T14:48:44.653Z",
+    "basic_info": {
+      "name": "SLB",
+      "title": "SLB",
+      "tagline": "Nuestra historia comienza con lo que realmente significa ser un innovador tecnológico",
+      "about_us": "Nuestra historia comienza con lo que realmente significa ser un innovador tecnológico. Nuestro sentido común de propósito une a 100,000 personas que representan 140 nacionalidades con productos, ventas y servicios en más de 120 países. Somos el proveedor líder mundial de tecnología para la caracterización, perforación, producción y procesamiento de yacimientos para una industria energética global.",
+      "nit": "860002175",
+      "website": "https://www.slb.com/"
+    },
+    "company_info": {
+      "headquarters_country_id": "e3b8b2c5-cd31-4d97-92a8-db440a930096",
+      "headquarters_country_name": "Estados Unidos",
+      "incorporation_date": "1972-04-04T00:00:00.000Z",
+      "national_experience": 96,
+      "international_experience": 84,
+      "total_employees": 1300,
+      "direct_employees": 0,
+      "indirect_employees": 0,
+      "ruc_score": null,
+      "ruc_last_updated": null,
+      "is_security_council_affiliate": true,
+      "is_authorized_economic_operator": true,
+      "legal_representative": "",
+      "phone": "6012195000"
+    },
+    "contact": [
+      {
+        "name": "Pedro Neiva",
+        "phone": "6012195000",
+        "email": "PNeiva-botelho@slb.com",
+        "address": null,
+        "position": "Country Manager"
+      }
+    ],
+    "media": [
+      {
+        "id": "7b542776-c9ae-4ce3-ad34-f98f715ad8fb",
+        "field_type": "logo",
+        "is_primary": false,
+        "url": "https://storage.googleapis.com/campetrol--directorio-storage/companies/fdf8b794-21ee-472e-bb83-c362701a394c/image/1763520053358_logo_cropped.png",
+        "filename": "companies/fdf8b794-21ee-472e-bb83-c362701a394c/image/1763520053358_logo_cropped.png",
+        "mime_type": "image/png"
+      }
+    ],
+    "logo": {
+      "id": "7b542776-c9ae-4ce3-ad34-f98f715ad8fb",
+      "url": "https://storage.googleapis.com/campetrol--directorio-storage/companies/fdf8b794-21ee-472e-bb83-c362701a394c/image/1763520053358_logo_cropped.png",
+      "filename": "companies/fdf8b794-21ee-472e-bb83-c362701a394c/image/1763520053358_logo_cropped.png",
+      "mime_type": "image/png",
+      "is_primary": false
+    },
+    "categories": [
+      {
+        "id": "e3d727a7-e2b3-4fa0-8f6d-8a80680fe8b9",
+        "category_id": "38571b68-c3e2-411d-9778-38048e86a038",
+        "name": "Exploración y Evaluación",
+        "slug": "exploracion-y-evaluacion",
+        "description": "Servicios, equipos y tecnologías orientados a la identificación, caracterización y análisis de recursos hidrocarburíferos, tanto convencionales como no convencionales, en etapas previas a la perforación y producción.",
+        "order": 1,
+        "icon": "https://storage.googleapis.com/campetrol--directorio-storage/assets/categories/1760392351396_Exploracion_y_evaluacion_2.png"
+      },
+      {
+        "id": "27b64b01-778f-4332-ad5a-f139390a1ad7",
+        "category_id": "f35e1120-88c4-444e-872e-87d00b7194e4",
+        "name": "Perforación y Completamiento",
+        "slug": "perforacion-y-completamiento",
+        "description": "Servicios, equipos y tecnologías relacionados con la perforación de pozos de petróleo y gas, así como las actividades necesarias para su finalización y puesta en producción.",
+        "order": 2,
+        "icon": "https://storage.googleapis.com/campetrol--directorio-storage/assets/categories/1759592407276_Perforacion_y_completamiento.png"
+      },
+      {
+        "id": "24f60d22-5fd2-43f1-a5c7-47587cbafa62",
+        "category_id": "95a59dd8-17db-41a0-8074-2cf682e82090",
+        "name": "Producción y Operaciones",
+        "slug": "produccion-y-operaciones",
+        "description": "Servicios, equipos y tecnologías aplicados durante la fase de extracción y manejo primario de hidrocarburos. Abarca todas las actividades post-completamiento destinadas a operar los pozos, optimizar la producción, tratar los fluidos en superficie y mantener la integridad y eficiencia de las facilidades de producción.",
+        "order": 3,
+        "icon": "https://storage.googleapis.com/campetrol--directorio-storage/assets/categories/1759592395565_Produccion_y_operaciones.png"
+      },
+      {
+        "id": "6cedd5bb-86ee-4111-a15b-fa9d324d9c71",
+        "category_id": "1bfb9373-d238-497f-b6c8-7bf712f6810e",
+        "name": "Energías Renovables y Transición Energética",
+        "slug": "energias-renovables-y-transicion-energetica",
+        "description": "Servicios, tecnologías y suministro de equipos orientados al desarrollo, operación y mantenimiento de proyectos de generación energética a partir de fuentes renovables, así como soluciones para la transición energética. Incluye energía solar, eólica, hidroeléctrica, geotérmica, biomasa, energía del mar, biocombustibles e hidrógeno verde y azul.",
+        "order": 6,
+        "icon": "https://storage.googleapis.com/campetrol--directorio-storage/assets/categories/1759592434586_Energias_renovables_y_transicion_energetica.png"
+      },
+      {
+        "id": "4bf181b5-1e28-4f48-b1a7-2d42025fcbce",
+        "category_id": "3a16c0d8-a064-4f01-b5cc-bfebb1217a68",
+        "name": "Servicios Corporativos y de Soporte",
+        "slug": "servicios-corporativos-y-de-soporte",
+        "description": "Servicios administrativos, legales, ambientales, tecnológicos y operativos que complementan las actividades técnicas de la industria energética, sin formar parte directa de los procesos de exploración, perforación, producción, refinación, logística o generación renovable. Esta categoría permite caracterizar proveedores que ofrecen soporte estratégico, normativo, digital, ambiental y de infraestructura auxiliar.",
+        "order": 7,
+        "icon": "https://storage.googleapis.com/campetrol--directorio-storage/assets/categories/1759592444699_Servicios_corporativos_y_de_soporte.png"
+      }
+    ],
+    "subcategories": [
+      {
+        "id": "eb6a9bd5-797f-4450-8d3c-ea51e07bb4db",
+        "subcategory_id": "41190a92-b949-4a9b-b443-25b758b00173",
+        "name": "Bombeo y levantamiento artificial",
+        "description": "Instalación, mantenimiento y optimización de sistemas de levantamiento artificial:\n• Bombeo mecánico, electrosumergible, cavidad progresiva y bombeo hidráulico.\n• Diseño de sistemas de levantamiento para optimización de caudal.\n• Diagnóstico y reparación de fallas en equipos de levantamiento.",
+        "category_id": "95a59dd8-17db-41a0-8074-2cf682e82090",
+        "category_name": "Producción y Operaciones",
+        "order": 2
+      },
+      {
+        "id": "492f5cda-7627-4356-b09e-817555c0717d",
+        "subcategory_id": "02a9df23-ae98-4922-ace5-2a6f69b39fd3",
+        "name": "Tecnología de la información y servicios digitales",
+        "description": "Soluciones TI aplicadas a la gestión empresarial, administrativa y operativa del sector energético.\nIncluye: software corporativo, ciberseguridad, plataformas de gestión, inteligencia artificial, análisis de datos, infraestructura TI, servicios en la nube, automatización administrativa.",
+        "category_id": "3a16c0d8-a064-4f01-b5cc-bfebb1217a68",
+        "category_name": "Servicios Corporativos y de Soporte",
+        "order": 2
+      },
+      {
+        "id": "d1bca3d8-c161-454f-ab7b-1c30c6d11bf0",
+        "subcategory_id": "436c9b1b-2297-4205-9efc-e86b53ebab58",
+        "name": "Completamiento de pozos",
+        "description": "Diseño e instalación de equipos y sistemas para habilitar la producción de hidrocarburos, incluyendo revestimientos, sistemas de levantamiento artificial, empaques, válvulas, registros y tecnologías de terminación inteligente.",
+        "category_id": "f35e1120-88c4-444e-872e-87d00b7194e4",
+        "category_name": "Perforación y Completamiento",
+        "order": 3
+      },
+      {
+        "id": "cc499650-7421-41af-bd55-241284c9a44d",
+        "subcategory_id": "bba297d1-3958-493e-9945-ae140c800eff",
+        "name": "Energía Geotérmica",
+        "description": "Servicios especializados y suministro de equipos para aprovechamiento de yacimientos geotérmicos.\nIncluye: exploración, perforación, diseño y operación de centrales de vapor seco, vapor destello y ciclo binario; brocas, bombas, válvulas, separadores, depuradores, sistemas de aislamiento, automatización y monitoreo.",
+        "category_id": "1bfb9373-d238-497f-b6c8-7bf712f6810e",
+        "category_name": "Energías Renovables y Transición Energética",
+        "order": 4
+      },
+      {
+        "id": "0addb9ae-a21b-4762-81ff-4bce5fbfa9a9",
+        "subcategory_id": "0d48cadb-d7fe-4235-8954-2bed51cb3e26",
+        "name": "Suministro y renta de equipos y accesorios",
+        "description": "Provisión y arrendamiento de equipos, herramientas y repuestos para perforación y completamiento, como tubería, brocas, bombas, sistemas de circulación, unidades de cementación y accesorios especializados.",
+        "category_id": "f35e1120-88c4-444e-872e-87d00b7194e4",
+        "category_name": "Perforación y Completamiento",
+        "order": 5
+      },
+      {
+        "id": "9cd84d5e-d140-48ba-8ab2-4cb793075fd0",
+        "subcategory_id": "019826d3-5a81-481b-b85a-4f0fd08d6bf5",
+        "name": "Suministro de equipos para producción",
+        "description": "• Bombas, separadores, medidores y válvulas.\n• Unidades móviles de tratamiento.\n• Sistemas de control y automatización.\n• Repuestos y accesorios para facilidades de producción.",
+        "category_id": "95a59dd8-17db-41a0-8074-2cf682e82090",
+        "category_name": "Producción y Operaciones",
+        "order": 6
+      },
+      {
+        "id": "65428901-57e0-4111-90a1-5f13e9a43907",
+        "subcategory_id": "98281b3d-e270-4b37-954a-3b3f4abcbad7",
+        "name": "Hidrógeno",
+        "description": "Servicios especializados y suministro de equipos para producción, compresión, almacenamiento y distribución de hidrógeno.\nIncluye: sistemas de electrólisis, electrolizadores, compresores, tanques, sistemas auxiliares, automatización, monitoreo y soluciones de integración energética.",
+        "category_id": "1bfb9373-d238-497f-b6c8-7bf712f6810e",
+        "category_name": "Energías Renovables y Transición Energética",
+        "order": 8
+      }
+    ],
+    "services": [
+      {
+        "id": "52a9af9f-6d98-40a9-9b8d-4e7a334063d6",
+        "service_subcategory_id": "8f30e60a-afab-4d5e-8801-670e650916f6",
+        "service": {
+          "id": "4fa45801-94b1-45c8-81e6-f41813700b28",
+          "name": "Almacenamiento de Tubería Flexible (Coiled Tubing)",
+          "description": null
+        },
+        "subcategory": {
+          "id": "0d48cadb-d7fe-4235-8954-2bed51cb3e26",
+          "name": "Suministro y renta de equipos y accesorios"
+        }
+      },
+      {
+        "id": "1b55eef0-3fa9-429b-9c96-91697f34bece",
+        "service_subcategory_id": "b22cb2ba-5779-45f5-a39e-4dc8c354be1b",
+        "service": {
+          "id": "10094b86-032e-4fe5-aea6-8fb5a7971042",
+          "name": "Bombeo Electrosumergible (BES)",
+          "description": null
+        },
+        "subcategory": {
+          "id": "41190a92-b949-4a9b-b443-25b758b00173",
+          "name": "Bombeo y levantamiento artificial"
+        }
+      },
+      {
+        "id": "ab1c01de-3f1f-4da3-973b-3d48bc3cc136",
+        "service_subcategory_id": "d6b55a6b-8667-4d17-a7e3-a8c2706878f0",
+        "service": {
+          "id": "384ef82c-cf2d-44b4-99a4-cda3038ac7fe",
+          "name": "Captura y Almacenamiento de Carbono (CCS)",
+          "description": null
+        },
+        "subcategory": {
+          "id": "98281b3d-e270-4b37-954a-3b3f4abcbad7",
+          "name": "Hidrógeno"
+        }
+      },
+      {
+        "id": "70a9d57f-a3b4-438d-9ec8-14db5e171186",
+        "service_subcategory_id": "652c3c21-a436-4eb5-a710-8d872a34bc19",
+        "service": {
+          "id": "49d6efa9-77d4-4b37-b249-dbd96203dcc8",
+          "name": "Cementación",
+          "description": null
+        },
+        "subcategory": {
+          "id": "436c9b1b-2297-4205-9efc-e86b53ebab58",
+          "name": "Completamiento de pozos"
+        }
+      },
+      {
+        "id": "06cab34a-cb4a-4d4a-987f-aa0c0c93b3a2",
+        "service_subcategory_id": "ee71d0d9-e1e5-465b-a542-9c503e7883f7",
+        "service": {
+          "id": "eb2af385-5a15-4328-b94b-d0ccdd00f6e5",
+          "name": "Exploración Geotérmica",
+          "description": null
+        },
+        "subcategory": {
+          "id": "bba297d1-3958-493e-9945-ae140c800eff",
+          "name": "Energía Geotérmica"
+        }
+      },
+      {
+        "id": "f26eecce-c6be-4fc2-bde6-a0b016bab173",
+        "service_subcategory_id": "c1bd53b9-866e-47c6-badb-1a4459e6a7e5",
+        "service": {
+          "id": "1ef4b669-9c5a-4ad6-82ad-ae8c07da81cf",
+          "name": "Herramientas Perforación Y Completamiento",
+          "description": null
+        },
+        "subcategory": {
+          "id": "0d48cadb-d7fe-4235-8954-2bed51cb3e26",
+          "name": "Suministro y renta de equipos y accesorios"
+        }
+      },
+      {
+        "id": "b40e31a9-9a43-4aab-9de7-f60bf32ba302",
+        "service_subcategory_id": "9cf12abe-9eef-449c-a6b2-8ae8b7230b84",
+        "service": {
+          "id": "d479734b-d60e-4764-acf8-d78287a5fbb1",
+          "name": "Servicios de Fracturamiento Hidráulico",
+          "description": null
+        },
+        "subcategory": {
+          "id": "436c9b1b-2297-4205-9efc-e86b53ebab58",
+          "name": "Completamiento de pozos"
+        }
+      },
+      {
+        "id": "ef897813-f33c-47ad-930d-a3fe579707ad",
+        "service_subcategory_id": "512feb6c-86ea-4615-a6af-b811bc265ffe",
+        "service": {
+          "id": "2669622c-f49b-4b2b-9606-f0383308f1ba",
+          "name": "Servicios de cementación",
+          "description": null
+        },
+        "subcategory": {
+          "id": "436c9b1b-2297-4205-9efc-e86b53ebab58",
+          "name": "Completamiento de pozos"
+        }
+      },
+      {
+        "id": "727c3e18-a5e5-41f6-b28d-8f52175f265b",
+        "service_subcategory_id": "3d736256-19a8-4f2e-9da6-642f610e93e3",
+        "service": {
+          "id": "2a4ff632-ea8c-4cff-9c08-f0b79f092f03",
+          "name": "Sistemas ESP",
+          "description": null
+        },
+        "subcategory": {
+          "id": "019826d3-5a81-481b-b85a-4f0fd08d6bf5",
+          "name": "Suministro de equipos para producción"
+        }
+      },
+      {
+        "id": "d7444bcd-f6ea-410f-b527-ce2dd91c6b4c",
+        "service_subcategory_id": "b888a2f1-a5eb-47e6-af45-8ca5ac886dcf",
+        "service": {
+          "id": "610a4400-9b41-46d7-bf37-22a366280d26",
+          "name": "Transformación Digital",
+          "description": null
+        },
+        "subcategory": {
+          "id": "02a9df23-ae98-4922-ace5-2a6f69b39fd3",
+          "name": "Tecnología de la información y servicios digitales"
+        }
+      }
+    ],
+    "operations": [
+      {
+        "id": "dfe27aba-cde7-4a95-9d40-6bb9cae68c29",
+        "operation_country_id": "65d967a2-435d-419d-8cb8-3e4e348ae122",
+        "country_name": "Colombia",
+        "start_date": null,
+        "is_active": true,
+        "created_at": "2025-08-23T17:43:02.574Z",
+        "updated_at": "2025-08-23T17:43:02.574Z"
+      }
+    ],
+    "branches": [],
+    "offices": [
+      {
+        "id": "47cad504-cb47-4cfd-a2f2-204c3734e9e8",
+        "office_type_id": "4faf3d69-141d-40c6-8d45-980c5a213942",
+        "office_type_name": "Oficina Principal",
+        "office_type_slug": "oficina-principal",
+        "department_id": "f0d207ef-e874-49c6-b826-49d5404b3bde",
+        "department_name": "Bogotá D.c.",
+        "city_id": "3650c883-571b-4912-af3c-9f0ed7faf700",
+        "city_name": "Bogotá",
+        "country_id": "65d967a2-435d-419d-8cb8-3e4e348ae122",
+        "country_name": "Colombia",
+        "address": "AC 100 #13-21, piso 4.",
+        "is_active": null,
+        "created_at": "2025-11-13T15:49:53.508Z",
+        "updated_at": "2025-11-13T15:49:53.508Z"
+      }
+    ],
+    "projects": [],
+    "certifications": [],
+    "social_networks": [
+      {
+        "id": "0b1c7821-0982-4382-aa82-367dd7071814",
+        "social_network_id": "4c670fb1-1217-46d6-a856-2ecde20da830",
+        "name": "YouTube",
+        "slug": "youtube",
+        "profile_url": "https://www.youtube.com/channel/UCzX5PhHCet4oAi_iTutUo5Q",
+        "username": "channel_UCzX5PhHCet4oAi_iTutUo5Q",
+        "is_verified": false,
+        "is_active": true,
+        "created_at": "2025-08-23T18:34:19.611Z",
+        "updated_at": "2025-08-23T18:34:19.611Z"
+      },
+      {
+        "id": "2dda6fe5-00af-42eb-9960-84aa4551ae49",
+        "social_network_id": "c4128c31-a0f2-4ce0-8a1d-9d7fa1385490",
+        "name": "Facebook",
+        "slug": "facebook",
+        "profile_url": "https://www.facebook.com/WeAreSLBGlobal",
+        "username": "WeAreSLBGlobal",
+        "is_verified": false,
+        "is_active": true,
+        "created_at": "2025-08-23T18:34:18.783Z",
+        "updated_at": "2025-08-23T18:34:18.783Z"
+      },
+      {
+        "id": "3ec2c2d6-e2fa-40da-8052-9aecb7d0d1ca",
+        "social_network_id": "d6e5024d-1f5e-417a-b9d9-d7c076e6dd56",
+        "name": "LinkedIn",
+        "slug": "linkedin",
+        "profile_url": "https://www.linkedin.com/company/slbglobal/mycompany/",
+        "username": "slbglobal",
+        "is_verified": false,
+        "is_active": true,
+        "created_at": "2025-08-23T18:34:17.954Z",
+        "updated_at": "2025-08-23T18:34:17.954Z"
+      }
+    ],
+    "supplier_databases": [],
+    "clients": [
+      {
+        "id": "a4819767-1cb2-469f-927d-6986ee275791",
+        "client_id": "b26f7f15-3cc3-4ed5-8f9f-d14829496534",
+        "client_name": "Ecopetrol S.A",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:34:23.128Z",
+        "updated_at": "2025-11-13T19:34:23.128Z"
+      },
+      {
+        "id": "2e4bcefc-937d-45a4-a72a-1fdcdbaec12b",
+        "client_id": "0dba8c59-007c-4cb1-b046-15e8819a4abc",
+        "client_name": "Frontera Energy",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:34:33.034Z",
+        "updated_at": "2025-11-13T19:34:33.034Z"
+      },
+      {
+        "id": "d2e983dd-c6bd-421d-a31a-6a161ab0d195",
+        "client_id": "4da48d28-92ba-49a4-8910-512b2e715642",
+        "client_name": "Parex Resources Colombia Ltd",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:34:38.410Z",
+        "updated_at": "2025-11-13T19:34:38.410Z"
+      },
+      {
+        "id": "df1f286e-0601-4668-8d63-54d6794e4e05",
+        "client_id": "82311890-b3ef-4e18-a077-fe06951f9373",
+        "client_name": "Geopark Colombia",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:34:48.890Z",
+        "updated_at": "2025-11-13T19:34:48.890Z"
+      },
+      {
+        "id": "e0e72a05-0df1-4d2e-b499-e4870cf27ddd",
+        "client_id": "fe413dc3-41eb-46ec-a9a5-0c4dc02f3024",
+        "client_name": "Gran Tierra Energy Colombia Ltd",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:34:58.306Z",
+        "updated_at": "2025-11-13T19:34:58.306Z"
+      },
+      {
+        "id": "b4f62d1d-3f06-4b5c-82c1-687d9bffa4fc",
+        "client_id": "ed908a71-c4e4-4b09-b8d6-3ee9d48adc83",
+        "client_name": "Hocol S.A.",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:35:02.562Z",
+        "updated_at": "2025-11-13T19:35:02.562Z"
+      },
+      {
+        "id": "27336c15-8a46-4209-8306-c7141cbf0f42",
+        "client_id": "356cc454-bca0-43e0-ba36-52f686829565",
+        "client_name": "Sierracol Energy",
+        "start_date": null,
+        "end_date": null,
+        "is_current": true,
+        "is_active": true,
+        "created_at": "2025-11-13T19:35:09.766Z",
+        "updated_at": "2025-11-13T19:35:09.766Z"
+      }
+    ],
+    "ciiu_codes": [
+      {
+        "id": "38643a51-24c9-4652-a470-433813ccd9ed",
+        "ciiu_code_id": "cb0391f1-955d-494c-a3c6-67758dba72f2",
+        "code": "0910",
+        "description": "Extracción de petróleo y de gas natural",
+        "is_primary": true,
+        "percentage": null,
+        "is_active": true,
+        "created_at": "2025-08-23T18:23:37.683Z",
+        "updated_at": "2025-08-23T18:23:37.683Z"
+      }
+    ],
+    "departments": []
+  },
+  "message": "Registro encontrado",
+  "metadata": {
+    "type": "single"
+  }
+}
