@@ -6,11 +6,25 @@ import ExportButton from "@/components/ExportButton";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function ReservasChart({ producto }: { producto: "Petroleo" | "Gas" }) {
+interface ReservasFiltros {
+  anios?: string[];
+  operadoras?: string[];
+  campos?: string[];
+  contratos?: string[];
+}
+
+export default function ReservasChart({ producto, filtros }: { producto: "Petroleo" | "Gas", filtros?: ReservasFiltros }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["reservas", producto],
+    queryKey: ["reservas", producto, filtros],
     queryFn: async () => {
-      const res = await fetch(`/api/reservas?producto=${producto}`);
+      let url = `/api/reservas?producto=${producto}`;
+      if (filtros) {
+        if (filtros.anios?.length) url += `&anios=${encodeURIComponent(filtros.anios.join(','))}`;
+        if (filtros.operadoras?.length) url += `&operadoras=${encodeURIComponent(filtros.operadoras.join(','))}`;
+        if (filtros.campos?.length) url += `&campos=${encodeURIComponent(filtros.campos.join(','))}`;
+        if (filtros.contratos?.length) url += `&contratos=${encodeURIComponent(filtros.contratos.join(','))}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Error cargando reservas");
       return res.json();
     },

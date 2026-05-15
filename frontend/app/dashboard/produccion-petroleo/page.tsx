@@ -784,7 +784,15 @@ export default function ProduccionPetroleoPage() {
         </div>
       </div>
 
-      <ReservasChart producto="Petroleo" />
+      <ReservasChart 
+        producto="Petroleo" 
+        filtros={{
+          anios: filtroAnios,
+          operadoras: filtroOperadoras,
+          campos: filtroCampos,
+          contratos: filtroContratos
+        }}
+      />
 
       <div className="panel" id="panel-dpto" style={{ marginBottom: 24 }}>
         <div className="panel-header">

@@ -8,7 +8,56 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const producto = searchParams.get("producto") || "Petroleo"; // 'Petroleo' o 'Gas'
 
-    // 1. KPI Globales (Sumatoria del último año)
+    const aniosParam = searchParams.get("anios");
+    const operadorasParam = searchParams.get("operadoras");
+    const camposParam = searchParams.get("campos");
+    const contratosParam = searchParams.get("contratos");
+
+    // Construir condicionales
+    const filterConditions = [];
+    const filterValues: any[] = [producto];
+    let paramIndex = 2; // El producto es el $1
+
+    if (aniosParam) {
+      // Ignoramos 'Todos' si viene en la lista
+      const aniosList = aniosParam.split(',').filter(a => a !== 'Todos').map(Number).filter(n => !isNaN(n));
+      if (aniosList.length > 0) {
+        filterConditions.push(`ano = ANY($${paramIndex}::int[])`);
+        filterValues.push(aniosList);
+        paramIndex++;
+      }
+    }
+
+    if (operadorasParam) {
+      const ops = operadorasParam.split(',').filter(o => o !== 'Todas' && o !== 'Todos');
+      if (ops.length > 0) {
+        filterConditions.push(`empresa_raw = ANY($${paramIndex}::text[])`);
+        filterValues.push(ops);
+        paramIndex++;
+      }
+    }
+
+    if (camposParam) {
+      const campos = camposParam.split(',').filter(c => c !== 'Todos');
+      if (campos.length > 0) {
+        filterConditions.push(`campo_raw = ANY($${paramIndex}::text[])`);
+        filterValues.push(campos);
+        paramIndex++;
+      }
+    }
+
+    if (contratosParam) {
+      const contratos = contratosParam.split(',').filter(c => c !== 'Todos');
+      if (contratos.length > 0) {
+        filterConditions.push(`contrato_raw = ANY($${paramIndex}::text[])`);
+        filterValues.push(contratos);
+        paramIndex++;
+      }
+    }
+
+    const whereClause = filterConditions.length > 0 ? ` AND ${filterConditions.join(' AND ')}` : '';
+
+    // 1. KPI Globales (Sumatoria del último año filtrado o absoluto)
     const kpisQuery = `
       SELECT 
         ano,
@@ -16,14 +65,16 @@ export async function GET(request: Request) {
         SUM(produccion_acumulada) as produccion_acumulada,
         (SUM(estimado_maximo_reservas) - SUM(produccion_acumulada)) as reservas_remanentes
       FROM hecho_reservas_yacimientos
-      WHERE producto_nombre = $1
+      WHERE producto_nombre = $1 ${whereClause}
       GROUP BY ano
       ORDER BY ano DESC
       LIMIT 1
     `;
-    const { rows: kpis } = await pool.query(kpisQuery, [producto]);
+    const { rows: kpis } = await pool.query(kpisQuery, filterValues);
 
-    // 2. Top 10 Campos con Mayores Reservas Remanentes (para el último año)
+    // 2. Top 10 Campos con Mayores Reservas Remanentes (para el último año filtrado)
+    let maxAnoCondition = `(SELECT MAX(ano) FROM hecho_reservas_yacimientos WHERE producto_nombre = $1 ${whereClause})`;
+    // Si ya filtramos por un año, no hace falta buscar el MAX, pero usar la misma subquery garantiza coherencia
     const topCamposQuery = `
       SELECT 
         campo_raw as nombre,
@@ -31,16 +82,20 @@ export async function GET(request: Request) {
         SUM(produccion_acumulada) as produccion_acumulada,
         (SUM(estimado_maximo_reservas) - SUM(produccion_acumulada)) as reservas_remanentes
       FROM hecho_reservas_yacimientos
-      WHERE producto_nombre = $1 AND ano = (SELECT MAX(ano) FROM hecho_reservas_yacimientos)
+      WHERE producto_nombre = $1 AND ano = ${maxAnoCondition} ${whereClause}
       GROUP BY campo_raw
       ORDER BY reservas_remanentes DESC
       LIMIT 10
     `;
-    const { rows: topCampos } = await pool.query(topCamposQuery, [producto]);
+    // filterValues funciona igual porque el maxAnoCondition y el whereClause usan las mismas dependencias de índice
+    const { rows: topCampos } = await pool.query(topCamposQuery, filterValues);
 
     // 3. Histórico de Reservas (1P, 2P, 3P)
-    // Producto_nombre in the new table is 'Petroleo' or 'Gas', but the resumen table uses columns 'liquido' and 'gas'.
     const colName = producto === 'Petroleo' ? 'liquido' : 'gas';
+    const whereResumen = filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : '';
+    // Param values need to exclude `producto` because resumen table doesn't filter by producto, it uses the columns
+    const resumenValues = filterValues.slice(1);
+
     const historicoQuery = `
       WITH res AS (
         SELECT 
@@ -49,12 +104,14 @@ export async function GET(request: Request) {
           SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
           SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
         FROM hecho_reservas_resumen
+        ${filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : ''}
         GROUP BY ano
       ), prod AS (
         SELECT 
           EXTRACT(YEAR FROM fecha)::int as ano, 
           (SUM(${producto === 'Petroleo' ? 'produccion_bpd' : 'produccion_mpcd'}) / COUNT(*)) * 365 as prod_anual 
         FROM ${producto === 'Petroleo' ? 'hecho_produccion' : 'hecho_produccion_gas'}
+        ${filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`).replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : ''}
         GROUP BY ano
       )
       SELECT 
@@ -68,7 +125,7 @@ export async function GET(request: Request) {
       WHERE COALESCE(r.ano, p.ano) >= 2016 AND COALESCE(r.ano, p.ano) <= (SELECT MAX(ano) FROM hecho_reservas_yacimientos)
       ORDER BY ano ASC
     `;
-    const { rows: historico } = await pool.query(historicoQuery);
+    const { rows: historico } = await pool.query(historicoQuery, resumenValues);
 
     return NextResponse.json({
       kpis: kpis[0] || { estimado_maximo_reservas: 0, produccion_acumulada: 0, reservas_remanentes: 0 },

@@ -515,7 +515,14 @@ export default function ProduccionGasPage() {
         </div>
       </div>
 
-      <ReservasChart producto="Gas" />
+      <ReservasChart 
+        producto="Gas" 
+        filtros={{
+          anios: filtroAnio,
+          operadoras: filtroOperadora,
+          campos: filtroCampo
+        }}
+      />
 
       <div className="panel" id="panel-gas-dpto" style={{ marginBottom: 24 }}>
         <div className="panel-header">
