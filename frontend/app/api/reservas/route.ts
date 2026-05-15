@@ -38,9 +38,25 @@ export async function GET(request: Request) {
     `;
     const { rows: topCampos } = await pool.query(topCamposQuery, [producto]);
 
+    // 3. Histórico de Reservas (1P, 2P, 3P)
+    // Producto_nombre in the new table is 'Petroleo' or 'Gas', but the resumen table uses columns 'liquido' and 'gas'.
+    const colName = producto === 'Petroleo' ? 'liquido' : 'gas';
+    const historicoQuery = `
+      SELECT 
+        ano,
+        SUM(CASE WHEN descripcion = 'TOTAL RESERVA PROBADA (1P):' THEN ${colName} ELSE 0 END) as reservas_1p,
+        SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
+        SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
+      FROM hecho_reservas_resumen
+      GROUP BY ano
+      ORDER BY ano ASC
+    `;
+    const { rows: historico } = await pool.query(historicoQuery);
+
     return NextResponse.json({
       kpis: kpis[0] || { estimado_maximo_reservas: 0, produccion_acumulada: 0, reservas_remanentes: 0 },
-      top_campos: topCampos
+      top_campos: topCampos,
+      historico: historico
     });
 
   } catch (error) {
