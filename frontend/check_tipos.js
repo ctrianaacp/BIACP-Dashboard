@@ -3,15 +3,20 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:REusFdvkAnx4O49
 
 async function check() {
   try {
-    const res = await pool.query(`
+    const tipos = await pool.query(`
       SELECT 
+        CASE 
+          WHEN tipo_hidrocarburo = 'O' THEN 'PETROLEO'
+          WHEN tipo_hidrocarburo = 'G' THEN 'GAS'
+          ELSE tipo_hidrocarburo
+        END as nombre,
         EXTRACT(YEAR FROM fecha_mes) as anio,
-        SUM(valor_regalia_cop) as valor_total
-      FROM hecho_regalias
+        SUM(regalia_cop) as valor
+      FROM hecho_regalias_campo
       WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
-      GROUP BY anio
+      GROUP BY 1, 2
     `);
-    console.log('hecho_regalias:', res.rows);
+    console.log('Tipos:', tipos.rows);
   } finally {
     pool.end();
   }

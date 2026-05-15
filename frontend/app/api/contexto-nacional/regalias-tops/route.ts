@@ -37,7 +37,7 @@ export async function GET() {
       GROUP BY 1, 2
     `;
 
-    // 4. Tipo de Hidrocarburo (2024 vs 2025)
+    // 4. Tipo de Hidrocarburo (Proporciones extraídas de campo)
     const tiposQuery = `
       SELECT 
         CASE 
@@ -52,11 +52,22 @@ export async function GET() {
       GROUP BY 1, 2
     `;
 
-    const [deptosRes, camposRes, munRes, tiposRes] = await Promise.all([
+    // 5. Total Regalías Global (Para escalar las proporciones de tipo)
+    const totalRegaliasQuery = `
+      SELECT 
+        EXTRACT(YEAR FROM fecha_mes) as anio,
+        SUM(valor_regalia_cop) as total_valor
+      FROM hecho_regalias
+      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
+      GROUP BY 1
+    `;
+
+    const [deptosRes, camposRes, munRes, tiposRes, totalRes] = await Promise.all([
       pool.query(deptosQuery).catch(() => ({ rows: [] })),
       pool.query(camposQuery).catch(() => ({ rows: [] })),
       pool.query(municipiosQuery).catch(() => ({ rows: [] })),
-      pool.query(tiposQuery).catch(() => ({ rows: [] }))
+      pool.query(tiposQuery).catch(() => ({ rows: [] })),
+      pool.query(totalRegaliasQuery).catch(() => ({ rows: [] }))
     ]);
 
     // Si la DB no devuelve nada (porque el ETL está vacío o aún no carga 2024/2025), forzamos el mock data
@@ -64,14 +75,16 @@ export async function GET() {
       throw new Error("Base de datos sin registros (ETL en progreso), forzando seed mock");
     }
 
-    // Función auxiliar para procesar y pivotar datos (2024 vs 2025)
-    const processTop5 = (rows: any[]) => {
+    const processTop5 = (rows: any[], isMunicipio = false) => {
       const map = new Map();
       rows.forEach(r => {
         if (!map.has(r.nombre)) map.set(r.nombre, { nombre: r.nombre, v2024: 0, v2025: 0 });
         const obj = map.get(r.nombre);
-        if (Number(r.anio) === 2024) obj.v2024 = Number(r.valor) / 1000000000000; // Billones
-        if (Number(r.anio) === 2025) obj.v2025 = Number(r.valor) / 1000000000000;
+        // Si es municipio, el dato ya viene en Millones de COP, dividimos por 1M para obtener Billones
+        // Si no es municipio, viene en Pesos COP exactos, dividimos por 1B (10^12)
+        const divider = isMunicipio ? 1000000 : 1000000000000;
+        if (Number(r.anio) === 2024) obj.v2024 = Number(r.valor) / divider;
+        if (Number(r.anio) === 2025) obj.v2025 = Number(r.valor) / divider;
       });
       // Ordenar por 2025 descendente y tomar Top 5
       return Array.from(map.values())
@@ -79,11 +92,43 @@ export async function GET() {
         .slice(0, 5);
     };
 
+    // Procesar tipos de hidrocarburo escalando sus proporciones contra el Total Real
+    const procesarTiposConEscala = (tiposRows: any[], totalRows: any[]) => {
+      const totalesPorAnio: Record<number, number> = {
+        2024: totalRows.find(t => Number(t.anio) === 2024)?.total_valor || 0,
+        2025: totalRows.find(t => Number(t.anio) === 2025)?.total_valor || 0
+      };
+
+      // Sumar el subtotal de campo por año para sacar proporciones
+      const subTotales: Record<number, number> = { 2024: 0, 2025: 0 };
+      tiposRows.forEach(r => {
+        if (Number(r.anio) === 2024) subTotales[2024] += Number(r.valor);
+        if (Number(r.anio) === 2025) subTotales[2025] += Number(r.valor);
+      });
+
+      const map = new Map();
+      tiposRows.forEach(r => {
+        if (!map.has(r.nombre)) map.set(r.nombre, { nombre: r.nombre, v2024: 0, v2025: 0 });
+        const obj = map.get(r.nombre);
+        const anio = Number(r.anio);
+        
+        // Regla de tres: (Valor Campo / Subtotal Campo) * Total Real Regalias
+        const proporcion = subTotales[anio] > 0 ? Number(r.valor) / subTotales[anio] : 0;
+        const valorEscalado = proporcion * (totalesPorAnio[anio] || 0);
+
+        // El Total Real viene en Pesos exactos, así que lo pasamos a Billones
+        if (anio === 2024) obj.v2024 = valorEscalado / 1000000000000;
+        if (anio === 2025) obj.v2025 = valorEscalado / 1000000000000;
+      });
+
+      return Array.from(map.values()).sort((a, b) => b.v2025 - a.v2025);
+    };
+
     return NextResponse.json({
       departamentos: processTop5(deptosRes.rows),
       campos: processTop5(camposRes.rows),
-      municipios: processTop5(munRes.rows),
-      tipos: processTop5(tiposRes.rows) // Para tipos no es necesario un top 5, pero sirve la misma lógica
+      municipios: processTop5(munRes.rows, true), // isMunicipio = true
+      tipos: procesarTiposConEscala(tiposRes.rows, totalRes.rows)
     });
 
   } catch (error) {

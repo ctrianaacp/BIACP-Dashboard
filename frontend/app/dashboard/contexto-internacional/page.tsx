@@ -183,6 +183,21 @@ export default function ContextoInternacionalPage() {
     };
   }, [registrosTaladros]);
 
+  // Preparar series para la gráfica de Variación Anual (YoY) de Taladros
+  const chartDataTaladrosYoy = useMemo(() => {
+    // Filtramos datos a partir de que haya registros YoY (evitar el primer año que suele ser nulo)
+    const validData = registrosTaladros.filter(r => r.fecha && r.global_yoy !== null);
+    const categorias = validData.map(r => new Date(r.fecha).getTime());
+
+    return {
+      categorias,
+      eeuu: validData.map(r => r.eeuu_yoy ? parseFloat(r.eeuu_yoy) : 0),
+      opep: validData.map(r => r.opep_yoy ? parseFloat(r.opep_yoy) : 0),
+      no_opep: validData.map(r => r.no_opep_yoy ? parseFloat(r.no_opep_yoy) : 0),
+      global: validData.map(r => r.global_yoy ? parseFloat(r.global_yoy) : 0),
+    };
+  }, [registrosTaladros]);
+
   if (isLoading) {
     return <Loading message="Cargando contexto internacional..." />;
   }
@@ -469,6 +484,71 @@ export default function ContextoInternacionalPage() {
                   theme: "light",
                   x: { format: 'MMM yyyy' },
                   y: { formatter: (v: number) => formatNum(v) }
+                }
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="panel" id="panel-taladros-yoy" style={{ marginBottom: 24 }}>
+        <div className="panel-header">
+          <span className="panel-title">Variación Anual de Taladros (%)</span>
+          <ExportButton targetId="panel-taladros-yoy" fileName="Taladros_YoY" />
+        </div>
+        <div className="panel-body">
+          {typeof window !== "undefined" && chartDataTaladrosYoy.categorias.length > 0 && (
+            <Chart 
+              type="line" 
+              height={400}
+              series={[
+                { name: "EE.UU.", type: "line", data: chartDataTaladrosYoy.eeuu },
+                { name: "OPEP", type: "line", data: chartDataTaladrosYoy.opep },
+                { name: "No OPEP", type: "line", data: chartDataTaladrosYoy.no_opep },
+                { name: "Global", type: "line", data: chartDataTaladrosYoy.global }
+              ]}
+              options={{
+                chart: { 
+                  background: "transparent", 
+                  toolbar: { show: false }, 
+                  fontFamily: "var(--font-main)",
+                  zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
+                },
+                theme: { mode: "light" },
+                colors: ["#02A3FF", "#111827", "#34D399", "#D44D03"], // EE.UU (Azul), OPEP (Gris/Oscuro), No OPEP (Verde), Global (Naranja)
+                stroke: { 
+                  width: [3, 3, 3, 3], 
+                  curve: "smooth" 
+                },
+                dataLabels: { enabled: false },
+                xaxis: { 
+                  type: "datetime",
+                  categories: chartDataTaladrosYoy.categorias,
+                  labels: { 
+                    style: { colors: "var(--color-text-muted)", fontSize: "11px" },
+                    datetimeUTC: false
+                  },
+                  tooltip: { enabled: false }
+                },
+                yaxis: { 
+                  title: { text: "% YoY", style: { fontWeight: 700, color: "var(--color-text-muted)" } },
+                  labels: { formatter: (v: number) => v.toFixed(1) + '%' }
+                },
+                grid: { borderColor: "#DDE3E8" },
+                legend: { position: "top", horizontalAlign: "center" },
+                tooltip: {
+                  theme: "light",
+                  x: { format: 'MMM yyyy' },
+                  y: { formatter: (v: number) => v.toFixed(1) + '%' }
+                },
+                annotations: {
+                  // Linea de 0%
+                  yaxis: [{
+                    y: 0,
+                    strokeDashArray: 0,
+                    borderColor: '#999',
+                    borderWidth: 1,
+                  }]
                 }
               }}
             />

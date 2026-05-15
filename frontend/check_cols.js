@@ -4,14 +4,11 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:REusFdvkAnx4O49
 async function check() {
   try {
     const res = await pool.query(`
-      SELECT 
-        EXTRACT(YEAR FROM fecha_mes) as anio,
-        SUM(valor_regalia_cop) as valor_total
-      FROM hecho_regalias
-      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
-      GROUP BY anio
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'hecho_regalias_asignacion'
     `);
-    console.log('hecho_regalias:', res.rows);
+    console.log('Columns in asignacion:', res.rows);
   } finally {
     pool.end();
   }

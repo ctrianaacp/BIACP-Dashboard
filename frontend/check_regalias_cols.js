@@ -3,8 +3,8 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:REusFdvkAnx4O49
 
 async function check() {
   try {
-    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'hecho_regalias%'`);
-    console.log(tables.rows);
+    const res = await pool.query(`SELECT table_name, column_name FROM information_schema.columns WHERE table_name LIKE 'hecho_regalias%'`);
+    console.log(res.rows.filter(r => r.column_name.includes('tipo_hidrocarburo') || r.column_name.includes('producto')));
   } finally {
     pool.end();
   }

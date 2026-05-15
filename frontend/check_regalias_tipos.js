@@ -5,13 +5,13 @@ async function check() {
   try {
     const res = await pool.query(`
       SELECT 
-        EXTRACT(YEAR FROM fecha_mes) as anio,
+        tipo_hidrocarburo,
         SUM(valor_regalia_cop) as valor_total
       FROM hecho_regalias
-      WHERE EXTRACT(YEAR FROM fecha_mes) IN (2024, 2025)
-      GROUP BY anio
+      WHERE EXTRACT(YEAR FROM fecha_mes) = 2024
+      GROUP BY tipo_hidrocarburo
     `);
-    console.log('hecho_regalias:', res.rows);
+    console.log('hecho_regalias por tipo (2024):', res.rows);
   } finally {
     pool.end();
   }

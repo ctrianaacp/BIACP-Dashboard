@@ -3,8 +3,8 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:REusFdvkAnx4O49
 
 async function check() {
   try {
-    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'hecho_regalias%'`);
-    console.log(tables.rows);
+    const res = await pool.query(`SELECT global, global_yoy FROM hecho_taladros LIMIT 3`);
+    console.log(res.rows);
   } finally {
     pool.end();
   }
