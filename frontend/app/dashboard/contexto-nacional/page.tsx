@@ -260,7 +260,7 @@ export default function ContextoNacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
                 },
@@ -336,7 +336,7 @@ export default function ContextoNacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   stacked: true,
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
@@ -425,7 +425,7 @@ export default function ContextoNacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
                 },
@@ -511,7 +511,7 @@ export default function ContextoNacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
                 },
@@ -583,7 +583,7 @@ export default function ContextoNacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
                 },
@@ -665,7 +665,7 @@ export default function ContextoNacionalPage() {
                   { name: "2025", data: regaliasTops.departamentos.map(d => d.v2025) }
                 ]}
                 options={{
-                  chart: { background: "transparent", toolbar: { show: true }, fontFamily: "var(--font-main)" },
+                  chart: { background: "transparent", toolbar: { show: false }, fontFamily: "var(--font-main)" },
                   theme: { mode: "light" },
                   colors: ["#0C5A66", "#8BD765"],
                   plotOptions: { bar: { horizontal: true, barHeight: "60%", borderRadius: 2, dataLabels: { position: 'top' } } },
@@ -706,7 +706,7 @@ export default function ContextoNacionalPage() {
                   { name: "2025", data: regaliasTops.campos.map(d => d.v2025) }
                 ]}
                 options={{
-                  chart: { background: "transparent", toolbar: { show: true }, fontFamily: "var(--font-main)" },
+                  chart: { background: "transparent", toolbar: { show: false }, fontFamily: "var(--font-main)" },
                   theme: { mode: "light" },
                   colors: ["#0C5A66", "#34D399"],
                   plotOptions: { bar: { horizontal: true, barHeight: "60%", borderRadius: 2, dataLabels: { position: 'top' } } },
@@ -747,7 +747,7 @@ export default function ContextoNacionalPage() {
                   { name: "2025", data: regaliasTops.municipios.map(d => d.v2025) }
                 ]}
                 options={{
-                  chart: { background: "transparent", toolbar: { show: true }, fontFamily: "var(--font-main)" },
+                  chart: { background: "transparent", toolbar: { show: false }, fontFamily: "var(--font-main)" },
                   theme: { mode: "light" },
                   colors: ["#0C5A66", "#D44D03"],
                   plotOptions: { bar: { horizontal: true, barHeight: "60%", borderRadius: 2, dataLabels: { position: 'top' } } },
@@ -788,7 +788,7 @@ export default function ContextoNacionalPage() {
                   { name: "2025", data: regaliasTops.tipos.map(d => d.v2025) }
                 ]}
                 options={{
-                  chart: { background: "transparent", toolbar: { show: true }, fontFamily: "var(--font-main)", stacked: true },
+                  chart: { background: "transparent", toolbar: { show: false }, fontFamily: "var(--font-main)", stacked: true },
                   theme: { mode: "light" },
                   colors: ["#0C2340", "#48C78E"],
                   plotOptions: { bar: { horizontal: false, columnWidth: "50%", borderRadius: 2 } },

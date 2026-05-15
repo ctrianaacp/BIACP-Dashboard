@@ -249,7 +249,7 @@ export default function ContextoInternacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)" 
                 },
                 theme: { mode: "light" },
@@ -309,7 +309,7 @@ export default function ContextoInternacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)" 
                 },
                 theme: { mode: "light" },
@@ -362,7 +362,7 @@ export default function ContextoInternacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
                 },
@@ -434,7 +434,7 @@ export default function ContextoInternacionalPage() {
               options={{
                 chart: { 
                   background: "transparent", 
-                  toolbar: { show: true }, 
+                  toolbar: { show: false }, 
                   fontFamily: "var(--font-main)",
                   stacked: true,
                   zoom: { enabled: true, type: 'x', autoScaleYaxis: true }
