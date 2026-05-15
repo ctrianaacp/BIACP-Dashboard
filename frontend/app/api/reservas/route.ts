@@ -18,16 +18,6 @@ export async function GET(request: Request) {
     const filterValues: any[] = [producto];
     let paramIndex = 2; // El producto es el $1
 
-    if (aniosParam) {
-      // Ignoramos 'Todos' si viene en la lista
-      const aniosList = aniosParam.split(',').filter(a => a !== 'Todos').map(Number).filter(n => !isNaN(n));
-      if (aniosList.length > 0) {
-        filterConditions.push(`ano = ANY($${paramIndex}::int[])`);
-        filterValues.push(aniosList);
-        paramIndex++;
-      }
-    }
-
     if (operadorasParam) {
       const ops = operadorasParam.split(',').filter(o => o !== 'Todas' && o !== 'Todos');
       if (ops.length > 0) {
@@ -106,45 +96,10 @@ export async function GET(request: Request) {
 
     // 4. Histórico de Reservas (1P, 2P, 3P) - ignoramos el filtro de años para ver la curva completa
     const colName = producto === 'Petroleo' ? 'liquido' : 'gas';
-    const filterConditionsSinAno = filterConditions.filter(c => !c.startsWith('ano ='));
-    const whereResumen = filterConditionsSinAno.length > 0 ? ` WHERE ${filterConditionsSinAno.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : '';
-    // Param values need to exclude `producto` and the `aniosList`
-    // Since `aniosList` was pushed right after `producto` if it existed, we need to carefully extract the values.
-    // The easiest way is to re-evaluate the parameters for the historical query without `ano`.
-    
-    let histParamIndex = 1;
-    const histValues: any[] = [];
-    const histConditions = [];
-
-    if (operadorasParam) {
-      const ops = operadorasParam.split(',').filter(o => o !== 'Todas' && o !== 'Todos');
-      if (ops.length > 0) {
-        histConditions.push(`empresa_raw = ANY($${histParamIndex}::text[])`);
-        histValues.push(ops);
-        histParamIndex++;
-      }
-    }
-
-    if (camposParam) {
-      const campos = camposParam.split(',').filter(c => c !== 'Todos');
-      if (campos.length > 0) {
-        histConditions.push(`campo_raw = ANY($${histParamIndex}::text[])`);
-        histValues.push(campos);
-        histParamIndex++;
-      }
-    }
-
-    if (contratosParam) {
-      const contratos = contratosParam.split(',').filter(c => c !== 'Todos');
-      if (contratos.length > 0) {
-        histConditions.push(`contrato_raw = ANY($${histParamIndex}::text[])`);
-        histValues.push(contratos);
-        histParamIndex++;
-      }
-    }
-
-    const histWhereResumen = histConditions.length > 0 ? ` WHERE ${histConditions.join(' AND ')}` : '';
-    const histWhereProd = histConditions.length > 0 ? ` WHERE ${histConditions.map(c => c.replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : '';
+    // Since we removed year from filterConditions entirely, we can just use filterConditions directly for history
+    const whereResumen = filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`)).join(' AND ')}` : '';
+    const histWhereProd = filterConditions.length > 0 ? ` WHERE ${filterConditions.map(c => c.replace(/\$([0-9]+)/g, (match, p1) => `$${parseInt(p1)-1}`).replace(/empresa_raw/g, 'COALESCE(empresa_raw, \'\')').replace(/campo_raw/g, 'campo').replace(/contrato_raw/g, 'contrato')).join(' AND ')}` : '';
+    const histValues = filterValues.slice(1);
 
     const historicoQuery = `
       WITH res AS (
@@ -154,7 +109,7 @@ export async function GET(request: Request) {
           SUM(CASE WHEN descripcion LIKE '%Reservas Probables (PRB)%' THEN ${colName} ELSE 0 END) as reservas_probables,
           SUM(CASE WHEN descripcion LIKE '%Reservas Posibles (PS)%' THEN ${colName} ELSE 0 END) as reservas_posibles
         FROM hecho_reservas_resumen
-        ${histWhereResumen}
+        ${whereResumen}
         GROUP BY ano
       ), prod AS (
         SELECT 
